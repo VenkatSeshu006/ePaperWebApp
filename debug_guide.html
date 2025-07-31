@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clip Tool Debugging Guide</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>🔧 Clip Tool Debugging Guide</h1>
+        
+        <div class="alert alert-info">
+            <h5>📋 Steps to Debug Clip Tool</h5>
+            <ol>
+                <li><strong>Open the homepage:</strong> <a href="http://localhost/epaper-site/" target="_blank">http://localhost/epaper-site/</a></li>
+                <li><strong>Open Developer Tools:</strong> Press F12 or right-click → Inspect</li>
+                <li><strong>Go to Console tab</strong> in Developer Tools</li>
+                <li><strong>Look for debug messages</strong> starting with "=== APP.JS LOADING ==="</li>
+                <li><strong>Click the Clip button</strong> (✂️ Clip) in the toolbar</li>
+                <li><strong>Watch console for messages</strong> starting with "=== CLIP BUTTON CLICKED ==="</li>
+            </ol>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5>✅ Expected Console Messages</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre class="small">
+=== APP.JS LOADING ===
+Edition data available: true
+Edition data loaded: {editionId: 1, totalPages: 12, baseUrl: "..."}
+DOM elements found: {thumbnails: 12, images: 12, clipButton: true, ...}
+Clip button found, adding event listener
+</pre>
+                        <p class="text-success small">Then when you click Clip button:</p>
+                        <pre class="small">
+=== CLIP BUTTON CLICKED ===
+=== HANDLE CLIP TOOL CALLED ===
+Active image found: true
+Cropper available: true
+Initializing cropper on image: ...
+Cropper ready, adding buttons
+Cropper initialized successfully
+</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5>❌ Common Error Messages</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre class="small text-danger">
+Edition data available: false
+→ JavaScript not loading properly
+
+Clip button NOT found
+→ Button missing from HTML
+
+Active image found: false
+→ No newspaper page loaded
+
+Cropper available: false
+→ Cropper.js library not loaded
+</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-warning mt-4">
+            <h5>🔍 What to Look For</h5>
+            <ul>
+                <li><strong>Red error messages</strong> in console indicate problems</li>
+                <li><strong>Failed network requests</strong> (404, 500 errors)</li>
+                <li><strong>JavaScript errors</strong> about missing functions or variables</li>
+                <li><strong>Missing DOM elements</strong> (clipButton: false)</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-primary">
+            <h5>🚀 Testing the Full Flow</h5>
+            <ol>
+                <li>Homepage loads without errors</li>
+                <li>Click Clip button → Cropper activates</li>
+                <li>Drag to select area on newspaper</li>
+                <li>Dark overlay with Save/Share/Cancel buttons appears</li>
+                <li>Click Save → Image uploads to server</li>
+                <li>Preview modal opens with clipped image</li>
+            </ol>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="http://localhost/epaper-site/" class="btn btn-primary btn-lg">
+                🧪 Test Homepage Now
+            </a>
+        </div>
+    </div>
+</body>
+</html>

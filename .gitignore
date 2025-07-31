@@ -1,0 +1,75 @@
+# E-Paper CMS - Git Ignore File
+
+# Environment and Configuration
+.env
+config.local.php
+database_config.php
+
+# Cache and Temporary Files
+cache/
+temp/
+*.tmp
+*.log
+
+# User Uploads (optional - you may want to include sample uploads)
+uploads/*.pdf
+uploads/*/pages/*.png
+uploads/*/thumbnail.png
+# Keep the directory structure
+!uploads/.gitkeep
+!uploads/clips/.gitkeep
+!uploads/temp/.gitkeep
+!uploads/thumbnails/.gitkeep
+
+# System Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Node Modules (if using npm)
+node_modules/
+
+# Composer Dependencies (if using)
+vendor/
+
+# Backup Files
+backup/
+*.backup
+*.bak
+
+# Error Logs
+error.log
+access.log
+php_errors.log
+
+# Windows System Files
+desktop.ini
+$RECYCLE.BIN/
+
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Sensitive Information
+*.key
+*.pem
+*.cert
+secrets.txt
+
+# Development Files
+test.php
+debug.php
+dev_notes.txt
+
+# Keep important empty directories
+!cache/.gitkeep
+!temp/.gitkeep
