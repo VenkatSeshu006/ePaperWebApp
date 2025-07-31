@@ -1,4 +1,4 @@
-# E-Paper CMS v2.0 🗞️
+# ePaperApplication - E-Paper CMS v2.0 🗞️
 
 A modern, responsive digital newspaper content management system with comprehensive sharing capabilities, built with PHP, MySQL, and JavaScript.
 
@@ -264,4 +264,4 @@ For support and questions:
 
 ---
 
-**Digital E-Paper CMS v2.0** - Built with ❤️ for modern digital publishing
+**ePaperApplication - Digital E-Paper CMS v2.0** - Built with ❤️ for modern digital publishing
