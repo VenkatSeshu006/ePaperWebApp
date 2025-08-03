@@ -34,7 +34,7 @@ $tableCheckSql = "CREATE TABLE IF NOT EXISTS clips (
     image_id INT DEFAULT 1,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    file_path VARCHAR(500) NOT NULL,
+    image_path VARCHAR(500) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_edition_id (edition_id),
     INDEX idx_created_at (created_at)
@@ -57,16 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $clip_id = (int)($_POST['clip_id'] ?? 0);
             
             // Get clip info first to delete the file
-            $clipSql = "SELECT file_path FROM clips WHERE id = ?";
+            $clipSql = "SELECT image_path FROM clips WHERE id = ?";
             $clipStmt = $conn->prepare($clipSql);
-            $clipStmt->bind_param("i", $clip_id);
-            $clipStmt->execute();
-            $clipResult = $clipStmt->get_result();
-            $clip = $clipResult->fetch_assoc();
+            $clipStmt->execute([$clip_id]);
+            $clip = $clipStmt->fetch();
             
             if ($clip) {
                 // Delete the file if it exists
-                $fullPath = '../' . $clip['file_path'];
+                $fullPath = '../' . ($clip['image_path'] ?? '');
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
                 }
@@ -74,12 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Delete from database
                 $deleteSql = "DELETE FROM clips WHERE id = ?";
                 $deleteStmt = $conn->prepare($deleteSql);
-                $deleteStmt->bind_param("i", $clip_id);
                 
-                if ($deleteStmt->execute()) {
+                if ($deleteStmt->execute([$clip_id])) {
                     $success = 'Clip deleted successfully.';
                 } else {
-                    $error = 'Error deleting clip: ' . $conn->error;
+                    $errorInfo = $conn->errorInfo();
+                    $error = 'Error deleting clip: ' . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error');
                 }
             } else {
                 $error = 'Clip not found.';
@@ -96,12 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $updateSql = "UPDATE clips SET title = ?, description = ? WHERE id = ?";
                 $updateStmt = $conn->prepare($updateSql);
-                $updateStmt->bind_param("ssi", $title, $description, $clip_id);
                 
-                if ($updateStmt->execute()) {
+                if ($updateStmt->execute([$title, $description, $clip_id])) {
                     $success = 'Clip updated successfully.';
                 } else {
-                    $error = 'Error updating clip: ' . $conn->error;
+                    $errorInfo = $conn->errorInfo();
+                    $error = 'Error updating clip: ' . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error');
                 }
             }
             break;
@@ -112,15 +110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $placeholders = str_repeat('?,', count($clip_ids) - 1) . '?';
                 
                 // Get file paths to delete files
-                $filesSql = "SELECT file_path FROM clips WHERE id IN ($placeholders)";
+                $filesSql = "SELECT image_path FROM clips WHERE id IN ($placeholders)";
                 $filesStmt = $conn->prepare($filesSql);
-                $filesStmt->bind_param(str_repeat('i', count($clip_ids)), ...$clip_ids);
-                $filesStmt->execute();
-                $filesResult = $filesStmt->get_result();
+                $filesStmt->execute($clip_ids);
                 
                 // Delete files
-                while ($file = $filesResult->fetch_assoc()) {
-                    $fullPath = '../' . $file['file_path'];
+                while ($file = $filesStmt->fetch()) {
+                    $fullPath = '../' . ($file['image_path'] ?? '');
                     if (file_exists($fullPath)) {
                         unlink($fullPath);
                     }
@@ -129,12 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Delete from database
                 $deleteSql = "DELETE FROM clips WHERE id IN ($placeholders)";
                 $deleteStmt = $conn->prepare($deleteSql);
-                $deleteStmt->bind_param(str_repeat('i', count($clip_ids)), ...$clip_ids);
                 
-                if ($deleteStmt->execute()) {
+                if ($deleteStmt->execute($clip_ids)) {
                     $success = count($clip_ids) . ' clips deleted successfully.';
                 } else {
-                    $error = 'Error deleting clips: ' . $conn->error;
+                    $errorInfo = $conn->errorInfo();
+                    $error = 'Error deleting clips: ' . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error');
                 }
             }
             break;
@@ -181,15 +177,13 @@ $clipsSql = "SELECT c.*, e.title as edition_title, e.date as edition_date
 
 if (!empty($params)) {
     $clipsStmt = $conn->prepare($clipsSql);
-    $clipsStmt->bind_param($paramTypes, ...$params);
-    $clipsStmt->execute();
-    $clipsResult = $clipsStmt->get_result();
+    $clipsStmt->execute($params);
 } else {
-    $clipsResult = $conn->query($clipsSql);
+    $clipsStmt = $conn->query($clipsSql);
 }
 
-if ($clipsResult) {
-    while ($row = $clipsResult->fetch_assoc()) {
+if ($clipsStmt) {
+    while ($row = $clipsStmt->fetch()) {
         $clips[] = $row;
     }
 }
@@ -198,7 +192,7 @@ if ($clipsResult) {
 $editionsSql = "SELECT id, title, date FROM editions ORDER BY date DESC";
 $editionsResult = $conn->query($editionsSql);
 if ($editionsResult) {
-    while ($row = $editionsResult->fetch_assoc()) {
+    while ($row = $editionsResult->fetch()) {
         $editions[] = $row;
     }
 }
@@ -211,7 +205,7 @@ $statsSql = "SELECT
     DATE(MAX(created_at)) as last_clip_date
     FROM clips";
 $statsResult = $conn->query($statsSql);
-$stats = $statsResult ? $statsResult->fetch_assoc() : [];
+$stats = $statsResult ? $statsResult->fetch() : [];
 
 // Page configuration for shared layout
 $pageTitle = 'Clips Management';
@@ -227,14 +221,14 @@ include 'includes/admin_layout.php';
     <div class="col-12">
         <?php if ($success): ?>
             <div class="alert alert-success alert-dismissible fade show">
-                <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success); ?>
+                <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($success, ENT_QUOTES, 'UTF-8'); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
             <div class="alert alert-danger alert-dismissible fade show">
-                <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error); ?>
+                <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
@@ -278,7 +272,7 @@ include 'includes/admin_layout.php';
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="card-title"><?php echo $stats['first_clip_date'] ? date('M j', strtotime($stats['first_clip_date'])) : 'N/A'; ?></h4>
+                        <h4 class="card-title"><?php echo ($stats['first_clip_date'] ?? '') ? date('M j', strtotime($stats['first_clip_date'])) : 'N/A'; ?></h4>
                         <p class="card-text">First Clip</p>
                     </div>
                     <div class="align-self-center">
@@ -293,7 +287,7 @@ include 'includes/admin_layout.php';
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4 class="card-title"><?php echo $stats['last_clip_date'] ? date('M j', strtotime($stats['last_clip_date'])) : 'N/A'; ?></h4>
+                        <h4 class="card-title"><?php echo ($stats['last_clip_date'] ?? '') ? date('M j', strtotime($stats['last_clip_date'])) : 'N/A'; ?></h4>
                         <p class="card-text">Latest Clip</p>
                     </div>
                     <div class="align-self-center">
@@ -316,19 +310,19 @@ include 'includes/admin_layout.php';
                         <select class="form-select" id="edition" name="edition">
                             <option value="">All Editions</option>
                             <?php foreach ($editions as $edition): ?>
-                                <option value="<?php echo $edition['id']; ?>" <?php echo $edition_filter == $edition['id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($edition['title']); ?> (<?php echo date('M j, Y', strtotime($edition['date'])); ?>)
+                                <option value="<?php echo $edition['id'] ?? ''; ?>" <?php echo $edition_filter == ($edition['id'] ?? '') ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($edition['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?> (<?php echo date('M j, Y', strtotime($edition['date'] ?? '')); ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label for="date" class="form-label">Filter by Date</label>
-                        <input type="date" class="form-control" id="date" name="date" value="<?php echo htmlspecialchars($date_filter); ?>">
+                        <input type="date" class="form-control" id="date" name="date" value="<?php echo htmlspecialchars($date_filter, ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     <div class="col-md-4">
                         <label for="search" class="form-label">Search</label>
-                        <input type="text" class="form-control" id="search" name="search" placeholder="Search title or description..." value="<?php echo htmlspecialchars($search); ?>">
+                        <input type="text" class="form-control" id="search" name="search" placeholder="Search title or description..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
@@ -398,16 +392,16 @@ include 'includes/admin_layout.php';
                                     <?php foreach ($clips as $clip): ?>
                                         <tr>
                                             <td>
-                                                <input type="checkbox" name="clip_ids[]" value="<?php echo $clip['id']; ?>" onchange="updateBulkActions()">
+                                                <input type="checkbox" name="clip_ids[]" value="<?php echo $clip['id'] ?? ''; ?>" onchange="updateBulkActions()">
                                             </td>
                                             <td>
                                                 <div class="clip-preview">
-                                                    <?php if (file_exists('../' . $clip['file_path'])): ?>
-                                                        <img src="../<?php echo htmlspecialchars($clip['file_path']); ?>" 
+                                                    <?php if (file_exists('../' . ($clip['image_path'] ?? ''))): ?>
+                                                        <img src="../<?php echo htmlspecialchars($clip['image_path'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" 
                                                              alt="Clip Preview" 
                                                              class="img-thumbnail"
                                                              style="max-width: 80px; max-height: 60px; cursor: pointer;"
-                                                             onclick="showPreview('<?php echo htmlspecialchars($clip['file_path']); ?>', '<?php echo htmlspecialchars($clip['title']); ?>')">
+                                                             onclick="showPreview('<?php echo htmlspecialchars($clip['image_path'] ?? '', ENT_QUOTES, 'UTF-8'); ?>', '<?php echo htmlspecialchars($clip['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?>')">
                                                     <?php else: ?>
                                                         <div class="bg-light d-flex align-items-center justify-content-center" style="width: 80px; height: 60px;">
                                                             <i class="fas fa-image text-muted"></i>
@@ -416,15 +410,15 @@ include 'includes/admin_layout.php';
                                                 </div>
                                             </td>
                                             <td>
-                                                <strong><?php echo htmlspecialchars($clip['title']); ?></strong>
-                                                <?php if ($clip['description']): ?>
-                                                    <br><small class="text-muted"><?php echo nl2br(htmlspecialchars(substr($clip['description'], 0, 100))); ?><?php echo strlen($clip['description']) > 100 ? '...' : ''; ?></small>
+                                                <strong><?php echo htmlspecialchars(($clip['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                <?php if (($clip['description'] ?? '')): ?>
+                                                    <br><small class="text-muted"><?php echo nl2br(htmlspecialchars(substr($clip['description'] ?? '', 0, 100))); ?><?php echo strlen($clip['description'] ?? '') > 100 ? '...' : ''; ?></small>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <?php if ($clip['edition_title']): ?>
-                                                    <strong><?php echo htmlspecialchars($clip['edition_title']); ?></strong>
-                                                    <br><small class="text-muted"><?php echo date('M j, Y', strtotime($clip['edition_date'])); ?></small>
+                                                <?php if (($clip['edition_title'] ?? '')): ?>
+                                                    <strong><?php echo htmlspecialchars(($clip['edition_title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                    <br><small class="text-muted"><?php echo date('M j, Y', strtotime($clip['edition_date'] ?? '')); ?></small>
                                                 <?php else: ?>
                                                     <span class="text-muted">Unknown Edition</span>
                                                 <?php endif; ?>
@@ -432,7 +426,7 @@ include 'includes/admin_layout.php';
                                             <td>
                                                 <small class="text-muted">
                                                     <i class="fas fa-clock me-1"></i>
-                                                    <?php echo date('M j, Y g:i A', strtotime($clip['created_at'])); ?>
+                                                    <?php echo date('M j, Y g:i A', strtotime($clip['created_at'] ?? '')); ?>
                                                 </small>
                                             </td>
                                             <td>
@@ -442,8 +436,8 @@ include 'includes/admin_layout.php';
                                                             title="Edit Clip">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <?php if (file_exists('../' . $clip['file_path'])): ?>
-                                                        <a href="../<?php echo htmlspecialchars($clip['file_path']); ?>" 
+                                                    <?php if (file_exists('../' . ($clip['image_path'] ?? ''))): ?>
+                                                        <a href="../<?php echo htmlspecialchars(($clip['image_path'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" 
                                                            class="btn btn-outline-success" 
                                                            download
                                                            title="Download Clip">
@@ -451,7 +445,7 @@ include 'includes/admin_layout.php';
                                                         </a>
                                                     <?php endif; ?>
                                                     <button type="button" class="btn btn-outline-danger" 
-                                                            onclick="deleteClip(<?php echo $clip['id']; ?>, '<?php echo htmlspecialchars($clip['title']); ?>')"
+                                                            onclick="deleteClip(<?php echo ($clip['id'] ?? ''); ?>, '<?php echo htmlspecialchars(($clip['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>')"
                                                             title="Delete Clip">
                                                         <i class="fas fa-trash"></i>
                                                     </button>

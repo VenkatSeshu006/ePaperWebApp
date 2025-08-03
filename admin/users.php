@@ -68,9 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Check if username or email already exists
                 $checkSql = "SELECT id FROM admin_users WHERE username = ? OR email = ?";
                 $checkStmt = $conn->prepare($checkSql);
-                $checkStmt->bind_param("ss", $username, $email);
-                $checkStmt->execute();
-                $existing = $checkStmt->get_result()->fetch_assoc();
+                $checkStmt->execute([$username, $email]);
+                $existing = $checkStmt->fetch();
                 
                 if ($existing) {
                     $error = 'Username or email already exists.';
@@ -79,12 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $password_hash = password_hash($password, PASSWORD_DEFAULT);
                     $sql = "INSERT INTO admin_users (username, email, full_name, password_hash, role) VALUES (?, ?, ?, ?, ?)";
                     $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("sssss", $username, $email, $full_name, $password_hash, $role);
                     
-                    if ($stmt->execute()) {
+                    if ($stmt->execute([$username, $email, $full_name, $password_hash, $role])) {
                         $success = 'User added successfully.';
                     } else {
-                        $error = 'Error adding user: ' . $conn->error;
+                        $errorInfo = $stmt->errorInfo();
+                        $error = 'Error adding user: ' . $errorInfo[2];
                     }
                 }
             }
@@ -104,9 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Check if username or email already exists (excluding current user)
                 $checkSql = "SELECT id FROM admin_users WHERE (username = ? OR email = ?) AND id != ?";
                 $checkStmt = $conn->prepare($checkSql);
-                $checkStmt->bind_param("ssi", $username, $email, $user_id);
-                $checkStmt->execute();
-                $existing = $checkStmt->get_result()->fetch_assoc();
+                $checkStmt->execute([$username, $email, $user_id]);
+                $existing = $checkStmt->fetch();
                 
                 if ($existing) {
                     $error = 'Username or email already exists.';
@@ -116,17 +114,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
                         $sql = "UPDATE admin_users SET username = ?, email = ?, full_name = ?, role = ?, password_hash = ? WHERE id = ?";
                         $stmt = $conn->prepare($sql);
-                        $stmt->bind_param("sssssi", $username, $email, $full_name, $role, $password_hash, $user_id);
+                        $executeParams = [$username, $email, $full_name, $role, $password_hash, $user_id];
                     } else {
                         $sql = "UPDATE admin_users SET username = ?, email = ?, full_name = ?, role = ? WHERE id = ?";
                         $stmt = $conn->prepare($sql);
-                        $stmt->bind_param("ssssi", $username, $email, $full_name, $role, $user_id);
+                        $executeParams = [$username, $email, $full_name, $role, $user_id];
                     }
                     
-                    if ($stmt->execute()) {
+                    if ($stmt->execute($executeParams)) {
                         $success = 'User updated successfully.';
                     } else {
-                        $error = 'Error updating user: ' . $conn->error;
+                        $errorInfo = $stmt->errorInfo();
+                        $error = 'Error updating user: ' . $errorInfo[2];
                     }
                 }
             }
@@ -138,25 +137,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Prevent deleting the last admin user
             $adminCountSql = "SELECT COUNT(*) as count FROM admin_users WHERE role = 'admin'";
             $adminCountResult = $conn->query($adminCountSql);
-            $adminCount = $adminCountResult->fetch_assoc()['count'];
+            $adminCount = $adminCountResult->fetch()['count'];
             
             $userRoleSql = "SELECT role FROM admin_users WHERE id = ?";
             $userRoleStmt = $conn->prepare($userRoleSql);
-            $userRoleStmt->bind_param("i", $user_id);
-            $userRoleStmt->execute();
-            $userRole = $userRoleStmt->get_result()->fetch_assoc()['role'] ?? '';
+            $userRoleStmt->execute([$user_id]);
+            $userRole = $userRoleStmt->fetch()['role'] ?? '';
             
             if ($userRole === 'admin' && $adminCount <= 1) {
                 $error = 'Cannot delete the last admin user.';
             } else {
                 $sql = "DELETE FROM admin_users WHERE id = ?";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("i", $user_id);
                 
-                if ($stmt->execute()) {
+                if ($stmt->execute([$user_id])) {
                     $success = 'User deleted successfully.';
                 } else {
-                    $error = 'Error deleting user: ' . $conn->error;
+                    $errorInfo = $stmt->errorInfo();
+                    $error = 'Error deleting user: ' . $errorInfo[2];
                 }
             }
             break;
@@ -167,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $sql = "SELECT id, username, email, full_name, role, last_login, created_at FROM admin_users ORDER BY created_at DESC";
 $result = $conn->query($sql);
 if ($result) {
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetch()) {
         $users[] = $row;
     }
 }

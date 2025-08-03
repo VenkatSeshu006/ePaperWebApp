@@ -144,6 +144,47 @@ $defaultSettings = [
         'value' => 'We are currently performing scheduled maintenance. Please check back soon.',
         'type' => 'html',
         'description' => 'Message displayed when maintenance mode is enabled'
+    ],
+    // Homepage Content Settings
+    'homepage_welcome_title' => [
+        'value' => 'Welcome to Digital News',
+        'type' => 'string',
+        'description' => 'Main welcome title on homepage'
+    ],
+    'homepage_welcome_subtitle' => [
+        'value' => 'Stay informed with the latest news and updates',
+        'type' => 'string',
+        'description' => 'Welcome subtitle on homepage'
+    ],
+    'homepage_archive_title' => [
+        'value' => 'Archive',
+        'type' => 'string',
+        'description' => 'Title for archive section on homepage'
+    ],
+    'homepage_archive_subtitle' => [
+        'value' => 'Browse all published editions',
+        'type' => 'string',
+        'description' => 'Subtitle for archive section on homepage'
+    ],
+    'homepage_show_archive' => [
+        'value' => '1',
+        'type' => 'boolean',
+        'description' => 'Show archive section on homepage'
+    ],
+    'homepage_max_archive_items' => [
+        'value' => '12',
+        'type' => 'number',
+        'description' => 'Maximum number of archive items to show on homepage'
+    ],
+    'homepage_background_color' => [
+        'value' => '#ffffff',
+        'type' => 'string',
+        'description' => 'Homepage background color'
+    ],
+    'homepage_text_color' => [
+        'value' => '#333333',
+        'type' => 'string',
+        'description' => 'Homepage text color'
     ]
 ];
 
@@ -153,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     switch ($action) {
         case 'save_settings':
-            $conn->autocommit(false);
+            $conn->beginTransaction();
             try {
                 foreach ($_POST as $key => $value) {
                     if ($key === 'action') continue;
@@ -187,16 +228,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $stmt = $conn->prepare($sql);
                     $description = $defaultSettings[$key]['description'] ?? '';
-                    $stmt->bind_param("ssss", $key, $value, $settingType, $description);
-                    $stmt->execute();
+                    $stmt->execute([$key, $value, $settingType, $description]);
                 }
                 
                 $conn->commit();
-                $conn->autocommit(true);
                 $success = 'Settings saved successfully!';
             } catch (Exception $e) {
                 $conn->rollback();
-                $conn->autocommit(true);
                 $error = 'Error saving settings: ' . $e->getMessage();
             }
             break;
@@ -210,8 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($defaultSettings as $key => $setting) {
                     $sql = "INSERT INTO settings (setting_key, setting_value, setting_type, description) VALUES (?, ?, ?, ?)";
                     $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("ssss", $key, $setting['value'], $setting['type'], $setting['description']);
-                    $stmt->execute();
+                    $stmt->execute([$key, $setting['value'], $setting['type'], $setting['description']]);
                 }
                 
                 $success = 'Settings reset to defaults successfully!';
@@ -228,7 +265,7 @@ $sql = "SELECT setting_key, setting_value, setting_type FROM settings";
 $result = $conn->query($sql);
 
 if ($result) {
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetch()) {
         $currentSettings[$row['setting_key']] = $row['setting_value'];
     }
 }
@@ -311,6 +348,65 @@ include 'includes/admin_layout.php';
                             <input type="text" class="form-control" id="copyright_text" name="copyright_text" 
                                    value="<?php echo htmlspecialchars($currentSettings['copyright_text'] ?? ''); ?>">
                             <small class="form-text text-muted"><?php echo $defaultSettings['copyright_text']['description']; ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Homepage Settings -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-home me-2 text-success"></i>Homepage Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="homepage_welcome_title" class="form-label">Welcome Title</label>
+                            <input type="text" class="form-control" id="homepage_welcome_title" name="homepage_welcome_title" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_welcome_title'] ?? ''); ?>">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_welcome_title']['description']; ?></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="homepage_welcome_subtitle" class="form-label">Welcome Subtitle</label>
+                            <input type="text" class="form-control" id="homepage_welcome_subtitle" name="homepage_welcome_subtitle" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_welcome_subtitle'] ?? ''); ?>">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_welcome_subtitle']['description']; ?></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="homepage_archive_title" class="form-label">Archive Section Title</label>
+                            <input type="text" class="form-control" id="homepage_archive_title" name="homepage_archive_title" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_archive_title'] ?? ''); ?>">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_archive_title']['description']; ?></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="homepage_archive_subtitle" class="form-label">Archive Section Subtitle</label>
+                            <input type="text" class="form-control" id="homepage_archive_subtitle" name="homepage_archive_subtitle" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_archive_subtitle'] ?? ''); ?>">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_archive_subtitle']['description']; ?></small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="homepage_show_archive" class="form-label">Show Archive Section</label>
+                            <select class="form-control" id="homepage_show_archive" name="homepage_show_archive">
+                                <option value="1" <?php echo ($currentSettings['homepage_show_archive'] ?? '1') == '1' ? 'selected' : ''; ?>>Yes</option>
+                                <option value="0" <?php echo ($currentSettings['homepage_show_archive'] ?? '1') == '0' ? 'selected' : ''; ?>>No</option>
+                            </select>
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_show_archive']['description']; ?></small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="homepage_max_archive_items" class="form-label">Max Archive Items</label>
+                            <input type="number" class="form-control" id="homepage_max_archive_items" name="homepage_max_archive_items" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_max_archive_items'] ?? '12'); ?>" min="1" max="50">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_max_archive_items']['description']; ?></small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="homepage_background_color" class="form-label">Background Color</label>
+                            <input type="color" class="form-control form-control-color" id="homepage_background_color" name="homepage_background_color" 
+                                   value="<?php echo htmlspecialchars($currentSettings['homepage_background_color'] ?? '#ffffff'); ?>">
+                            <small class="form-text text-muted"><?php echo $defaultSettings['homepage_background_color']['description']; ?></small>
                         </div>
                     </div>
                 </div>

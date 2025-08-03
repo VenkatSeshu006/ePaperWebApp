@@ -33,7 +33,7 @@ try {
     $result = $conn->query("SELECT id, title, date, thumbnail_path FROM editions ORDER BY date DESC LIMIT 1");
     if ($result) {
         echo "✅ Query successful!\n";
-        $edition = $result->fetch_assoc();
+        $edition = $result->fetch();
         if ($edition) {
             echo "Found edition: " . $edition['title'] . "\n";
         }

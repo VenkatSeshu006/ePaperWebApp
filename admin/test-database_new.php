@@ -46,7 +46,7 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
                     'test' => 'Database Connection',
                     'status' => 'success',
                     'message' => 'Successfully connected to database',
-                    'details' => 'Server: ' . $conn->server_info
+                    'details' => 'Server: ' . $conn->getAttribute(PDO::ATTR_SERVER_VERSION)
                 ];
             } else {
                 $testResults[] = [
@@ -73,7 +73,7 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             
             foreach ($requiredTables as $table) {
                 $result = $conn->query("SHOW TABLES LIKE '$table'");
-                if ($result && $result->num_rows > 0) {
+                if ($result && $result->rowCount() > 0) {
                     $existingTables[] = $table;
                 } else {
                     $missingTables[] = $table;
@@ -102,7 +102,7 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $result = $conn->query("SELECT COUNT(*) as count FROM editions");
                 if ($result) {
-                    $count = $result->fetch_assoc()['count'];
+                    $count = $result->fetch(PDO::FETCH_ASSOC)['count'];
                     $testResults[] = [
                         'test' => 'Read Operations',
                         'status' => 'success',
@@ -127,15 +127,14 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $testTitle = 'Test Edition ' . date('Y-m-d H:i:s');
                 $stmt = $conn->prepare("INSERT INTO editions (title, description, status) VALUES (?, ?, ?)");
-                $stmt->bind_param("sss", $testTitle, "Test description", "draft");
+                $stmt->// Converted to execute() with array - bind_param("sss", $testTitle, "Test description", "draft");
                 
                 if ($stmt->execute()) {
-                    $insertId = $conn->insert_id;
+                    $insertId = $conn->lastInsertId();
                     
                     // Clean up test data
                     $deleteStmt = $conn->prepare("DELETE FROM editions WHERE id = ?");
-                    $deleteStmt->bind_param("i", $insertId);
-                    $deleteStmt->execute();
+                    $stmt->execute([$insertId]);
                     
                     $testResults[] = [
                         'test' => 'Write Operations',
@@ -229,11 +228,11 @@ try {
     
     if ($conn) {
         $dbInfo = [
-            'server_info' => $conn->server_info,
-            'client_info' => $conn->client_info,
-            'host_info' => $conn->host_info,
-            'protocol_version' => $conn->protocol_version,
-            'charset' => $conn->character_set_name(),
+            'server_info' => $conn->getAttribute(PDO::ATTR_SERVER_VERSION),
+            'client_info' => $conn->getAttribute(PDO::ATTR_CLIENT_VERSION),
+            'host_info' => $conn->getAttribute(PDO::ATTR_CONNECTION_STATUS),
+            'protocol_version' => $conn->getAttribute(PDO::ATTR_SERVER_VERSION),
+            'charset' => "utf8mb4",
         ];
     }
 } catch (Exception $e) {

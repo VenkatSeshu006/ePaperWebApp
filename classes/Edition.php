@@ -75,6 +75,23 @@ class Edition {
     }
     
     /**
+     * Get edition by ID (admin version - gets all statuses)
+     */
+    public function getByIdAdmin($id) {
+        $sql = "SELECT e.*, 
+                GROUP_CONCAT(c.name SEPARATOR ', ') as categories,
+                u.full_name as created_by_name
+                FROM editions e 
+                LEFT JOIN edition_categories ec ON e.id = ec.edition_id
+                LEFT JOIN categories c ON ec.category_id = c.id
+                LEFT JOIN admin_users u ON e.created_by = u.id
+                WHERE e.id = ?
+                GROUP BY e.id";
+        
+        return $this->db->query($sql, [$id])->fetch();
+    }
+    
+    /**
      * Get edition by slug
      */
     public function getBySlug($slug) {
@@ -186,16 +203,20 @@ class Edition {
     }
     
     /**
+     * Get total count of all editions (for admin interface)
+     */
+    public function getTotalCountAll() {
+        $sql = "SELECT COUNT(*) as total FROM editions";
+        $result = $this->db->query($sql)->fetch();
+        return $result ? (int)$result['total'] : 0;
+    }
+    
+    /**
      * Get all editions (including drafts) for admin management
      */
     public function getAll($limit = null, $offset = 0) {
-        $sql = "SELECT e.*, 
-                GROUP_CONCAT(c.name SEPARATOR ', ') as categories
-                FROM editions e 
-                LEFT JOIN edition_categories ec ON e.id = ec.edition_id
-                LEFT JOIN categories c ON ec.category_id = c.id
-                GROUP BY e.id 
-                ORDER BY e.created_at DESC";
+        // Simplified query without categories join for debugging
+        $sql = "SELECT * FROM editions ORDER BY created_at DESC";
         
         if ($limit) {
             $sql .= " LIMIT $limit OFFSET $offset";
@@ -208,21 +229,65 @@ class Edition {
      * Create new edition
      */
     public function create($data) {
-        $sql = "INSERT INTO editions (title, description, date, pdf_path, thumbnail_path, status, created_at, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO editions (title, slug, description, date, thumbnail_path, pdf_path, total_pages, file_size, status, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        
+        // Handle date field - check for both 'date' and 'publication_date' keys
+        $date = null;
+        if (isset($data['date'])) {
+            $date = $data['date'];
+        } elseif (isset($data['publication_date'])) {
+            $date = $data['publication_date'];
+        } else {
+            $date = date('Y-m-d'); // Default to current date
+        }
+
+        // Generate slug from title
+        $slug = $this->generateSlug($data['title']);
         
         $params = [
             $data['title'],
+            $slug,
             $data['description'] ?? '',
-            $data['date'],
-            $data['pdf_path'],
-            $data['thumbnail_path'] ?? '',
-            $data['status'] ?? 'draft',
-            $data['created_at'] ?? date('Y-m-d H:i:s')
+            $date,
+            $data['thumbnail_path'] ?? '', // Maps to thumbnail_path in database
+            $data['pdf_path'] ?? $data['pdf_file'] ?? '', // Support both names, prioritize pdf_path
+            $data['total_pages'] ?? 0,
+            $data['file_size'] ?? 0,
+            $data['status'] ?? 'published' // Default to published
         ];
         
         $result = $this->db->query($sql, $params);
-        return $result ? $this->db->getLastInsertId() : false;
+        return $result ? $this->db->lastInsertId() : false;
+    }
+
+    /**
+     * Generate URL-friendly slug from title
+     */
+    private function generateSlug($title) {
+        $slug = strtolower(trim($title));
+        $slug = preg_replace('/[^a-z0-9-]/', '-', $slug);
+        $slug = preg_replace('/-+/', '-', $slug);
+        $slug = trim($slug, '-');
+        
+        // Ensure uniqueness
+        $originalSlug = $slug;
+        $counter = 1;
+        while ($this->slugExists($slug)) {
+            $slug = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+        
+        return $slug;
+    }
+
+    /**
+     * Check if slug already exists
+     */
+    private function slugExists($slug) {
+        $sql = "SELECT COUNT(*) FROM editions WHERE slug = ?";
+        $result = $this->db->query($sql, [$slug])->fetch();
+        return $result['COUNT(*)'] > 0;
     }
     
     /**

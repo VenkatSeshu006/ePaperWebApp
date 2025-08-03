@@ -50,7 +50,7 @@ try {
         $result = $conn->query("SHOW TABLES LIKE '$table'");
         if ($result->num_rows > 0) {
             $count_result = $conn->query("SELECT COUNT(*) as count FROM $table");
-            $count = $count_result->fetch_assoc()['count'];
+            $count = $count_result->fetch()['count'];
             echo "<p class='success'><i class='fas fa-check'></i> Table '$table' exists with $count records</p>";
         } else {
             echo "<p class='error'><i class='fas fa-times'></i> Table '$table' missing!</p>";
@@ -73,7 +73,7 @@ try {
     ");
     
     if ($result && $result->num_rows > 0) {
-        $edition = $result->fetch_assoc();
+        $edition = $result->fetch();
         echo "<p class='success'><i class='fas fa-check'></i> Sample edition found: '{$edition['title']}'</p>";
         echo "<p class='info'><i class='fas fa-info-circle'></i> Pages: {$edition['page_count']}, Status: {$edition['status']}</p>";
         

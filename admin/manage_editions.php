@@ -34,10 +34,28 @@ if (file_exists('../classes/Edition.php')) {
 
 // Page configuration
 $pageTitle = 'Manage Editions';
-$pageSubtitle = 'View and manage all published editions';
+$pageSubtitle = 'View and manage all editions';
 
 $message = '';
 $messageType = '';
+
+// Handle publish action
+if (isset($_GET['publish']) && isset($_GET['id'])) {
+    try {
+        $edition = new Edition();
+        $result = $edition->update($_GET['id'], ['status' => 'published']);
+        
+        if ($result) {
+            $message = 'Edition published successfully!';
+            $messageType = 'success';
+        } else {
+            throw new Exception('Failed to publish edition');
+        }
+    } catch (Exception $e) {
+        $message = $e->getMessage();
+        $messageType = 'danger';
+    }
+}
 
 // Handle delete action
 if (isset($_GET['delete']) && isset($_GET['id'])) {
@@ -60,13 +78,14 @@ if (isset($_GET['delete']) && isset($_GET['id'])) {
 // Get editions
 $editions = [];
 $totalEditions = 0;
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? max(1, (int)($_GET['page'] ?? 1)) : 1; // Ensure minimum page is 1
 $itemsPerPage = 10;
 
 try {
     $edition = new Edition();
-    $editions = $edition->getAll($currentPage, $itemsPerPage);
-    $totalEditions = $edition->getTotalCount();
+    $offset = max(0, ($currentPage - 1) * $itemsPerPage); // Ensure offset is never negative
+    $editions = $edition->getAll($itemsPerPage, $offset);
+    $totalEditions = $edition->getTotalCountAll(); // Use getTotalCountAll for admin interface
 } catch (Exception $e) {
     $message = 'Error loading editions: ' . $e->getMessage();
     $messageType = 'danger';
@@ -89,10 +108,28 @@ require_once 'includes/admin_layout.php';
     <div class="col-12">
         <div class="admin-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-newspaper"></i>
-                    All Editions (<?php echo $totalEditions; ?>)
-                </h5>
+                <div>
+                    <h5 class="mb-1">
+                        <i class="fas fa-newspaper"></i>
+                        All Editions (<?php echo $totalEditions; ?>)
+                    </h5>
+                    <?php
+                    // Count published vs draft
+                    $publishedCount = 0;
+                    $draftCount = 0;
+                    foreach ($editions as $edition) {
+                        if (($edition['status'] ?? 'draft') === 'published') {
+                            $publishedCount++;
+                        } else {
+                            $draftCount++;
+                        }
+                    }
+                    ?>
+                    <small class="text-muted">
+                        <span class="badge bg-success me-1"><?php echo $publishedCount; ?> Published</span>
+                        <span class="badge bg-warning"><?php echo $draftCount; ?> Draft</span>
+                    </small>
+                </div>
                 <div>
                     <a href="upload.php" class="btn btn-admin-primary">
                         <i class="fas fa-plus"></i>
@@ -113,7 +150,7 @@ require_once 'includes/admin_layout.php';
                 <?php else: ?>
                     <!-- Filters -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-search"></i>
@@ -121,6 +158,13 @@ require_once 'includes/admin_layout.php';
                                 <input type="text" class="form-control" id="searchInput" 
                                        placeholder="Search editions...">
                             </div>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" id="statusFilter">
+                                <option value="">All Status</option>
+                                <option value="published">Published</option>
+                                <option value="draft">Draft</option>
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <select class="form-select" id="categoryFilter">
@@ -158,13 +202,14 @@ require_once 'includes/admin_layout.php';
                             </thead>
                             <tbody>
                                 <?php foreach ($editions as $edition): ?>
-                                <tr data-category="<?php echo htmlspecialchars($edition['category'] ?? 'general'); ?>"
-                                    data-title="<?php echo htmlspecialchars(strtolower($edition['title'])); ?>">
+                                <tr data-category="<?php echo htmlspecialchars($edition['category'] ?? 'general', ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-status="<?php echo htmlspecialchars($edition['status'] ?? 'draft', ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-title="<?php echo htmlspecialchars(strtolower($edition['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
-                                                <?php if (!empty($edition['thumbnail_path']) && file_exists('../' . $edition['thumbnail_path'])): ?>
-                                                    <img src="../<?php echo htmlspecialchars($edition['thumbnail_path']); ?>" 
+                                                <?php if (!empty(($edition['thumbnail_path'] ?? '')) && file_exists('../' . ($edition['thumbnail_path'] ?? ''))): ?>
+                                                    <img src="../<?php echo htmlspecialchars(($edition['thumbnail_path'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" 
                                                          alt="Thumbnail" class="rounded" 
                                                          style="width: 60px; height: 60px; object-fit: cover;">
                                                 <?php else: ?>
@@ -175,7 +220,7 @@ require_once 'includes/admin_layout.php';
                                                 <?php endif; ?>
                                             </div>
                                             <div>
-                                                <h6 class="mb-1"><?php echo htmlspecialchars($edition['title']); ?></h6>
+                                                <h6 class="mb-1"><?php echo htmlspecialchars(($edition['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></h6>
                                                 <p class="text-muted small mb-0">
                                                     <?php echo htmlspecialchars(substr($edition['description'] ?? '', 0, 80)); ?>
                                                     <?php if (strlen($edition['description'] ?? '') > 80): ?>...<?php endif; ?>
@@ -190,11 +235,11 @@ require_once 'includes/admin_layout.php';
                                     </td>
                                     <td>
                                         <span class="small">
-                                            <?php echo date('M j, Y', strtotime($edition['publication_date'] ?? $edition['created_at'])); ?>
+                                            <?php echo date('M j, Y', strtotime($edition['publication_date'] ?? ($edition['created_at'] ?? ''))); ?>
                                         </span>
                                         <br>
                                         <span class="text-muted smaller">
-                                            <?php echo date('g:i A', strtotime($edition['created_at'])); ?>
+                                            <?php echo date('g:i A', strtotime(($edition['created_at'] ?? ''))); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -203,22 +248,35 @@ require_once 'includes/admin_layout.php';
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge bg-success">Published</span>
+                                        <?php 
+                                        $status = $edition['status'] ?? 'draft';
+                                        $statusClass = $status === 'published' ? 'bg-success' : 'bg-warning';
+                                        $statusText = ucfirst($status);
+                                        ?>
+                                        <span class="badge <?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="../view.php?id=<?php echo $edition['id']; ?>" 
+                                            <a href="../view-edition.php?id=<?php echo ($edition['id'] ?? ''); ?>" 
                                                class="btn btn-sm btn-outline-primary" 
                                                target="_blank" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="edit.php?id=<?php echo $edition['id']; ?>" 
+                                            <a href="edit_edition.php?id=<?php echo ($edition['id'] ?? ''); ?>" 
                                                class="btn btn-sm btn-outline-secondary" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            <?php if (($edition['status'] ?? '') === 'draft'): ?>
+                                            <a href="?publish=<?php echo ($edition['id'] ?? ''); ?>&page=<?php echo $currentPage; ?>" 
+                                               class="btn btn-sm btn-outline-success" 
+                                               onclick="return confirm('Publish this edition?')" 
+                                               title="Publish">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </a>
+                                            <?php endif; ?>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-danger" 
-                                                    onclick="confirmDelete(<?php echo $edition['id']; ?>, '<?php echo htmlspecialchars(addslashes($edition['title'])); ?>')"
+                                                    onclick="confirmDelete(<?php echo ($edition['id'] ?? ''); ?>, '<?php echo htmlspecialchars(addslashes($edition['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>')"
                                                     title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -271,33 +329,42 @@ $additionalJS = "
 <script>
 // Search functionality
 document.getElementById('searchInput').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#editionsTable tbody tr');
-    
-    rows.forEach(row => {
-        const title = row.getAttribute('data-title');
-        if (title.includes(searchTerm)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+    filterTable();
 });
 
 // Category filter
 document.getElementById('categoryFilter').addEventListener('change', function() {
-    const selectedCategory = this.value;
+    filterTable();
+});
+
+// Status filter
+document.getElementById('statusFilter').addEventListener('change', function() {
+    filterTable();
+});
+
+// Combined filter function
+function filterTable() {
+    const selectedCategory = document.getElementById('categoryFilter').value;
+    const selectedStatus = document.getElementById('statusFilter').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const rows = document.querySelectorAll('#editionsTable tbody tr');
     
     rows.forEach(row => {
         const category = row.getAttribute('data-category');
-        if (!selectedCategory || category === selectedCategory) {
+        const status = row.getAttribute('data-status');
+        const title = row.getAttribute('data-title');
+        
+        const categoryMatch = !selectedCategory || category === selectedCategory;
+        const statusMatch = !selectedStatus || status === selectedStatus;
+        const searchMatch = !searchTerm || title.includes(searchTerm);
+        
+        if (categoryMatch && statusMatch && searchMatch) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
         }
     });
-});
+}
 
 // Delete confirmation
 function confirmDelete(id, title) {

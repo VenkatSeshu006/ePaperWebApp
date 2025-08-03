@@ -107,9 +107,9 @@ echo "   Total PHP files: $totalFiles\n";
 echo "   Total project size: {$totalSizeMB} MB\n";
 
 // 7. Database statistics
-$editionsCount = $conn->query("SELECT COUNT(*) as count FROM editions")->fetch_assoc()['count'] ?? 0;
-$pagesCount = $conn->query("SELECT COUNT(*) as count FROM pages")->fetch_assoc()['count'] ?? 0;
-$clipsCount = $conn->query("SELECT COUNT(*) as count FROM clips")->fetch_assoc()['count'] ?? 0;
+$editionsCount = $conn->query("SELECT COUNT(*) as count FROM editions")->fetch()['count'] ?? 0;
+$pagesCount = $conn->query("SELECT COUNT(*) as count FROM pages")->fetch()['count'] ?? 0;
+$clipsCount = $conn->query("SELECT COUNT(*) as count FROM clips")->fetch()['count'] ?? 0;
 
 echo "   Editions in database: $editionsCount\n";
 echo "   Pages in database: $pagesCount\n";
@@ -174,7 +174,7 @@ file_put_contents('DEPLOYMENT_CHECKLIST.md', $checklist);
 echo "   Created DEPLOYMENT_CHECKLIST.md\n";
 
 // Close database connection
-$conn->close();
+$conn = null;
 
 echo "\n✅ Cleanup completed successfully!\n";
 echo "📦 Project is ready for deployment\n";

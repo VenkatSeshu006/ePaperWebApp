@@ -12,7 +12,7 @@ try {
     echo "\n=== CURRENT CLIPS TABLE STRUCTURE ===\n";
     $result = $conn->query("DESCRIBE clips");
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo $row['Field'] . " | " . $row['Type'] . " | " . $row['Null'] . " | " . $row['Key'] . "\n";
         }
     } else {
@@ -60,7 +60,7 @@ try {
     echo "\n=== FINAL CLIPS TABLE STRUCTURE ===\n";
     $result = $conn->query("DESCRIBE clips");
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo $row['Field'] . " | " . $row['Type'] . " | " . $row['Null'] . " | " . $row['Key'] . "\n";
         }
     }

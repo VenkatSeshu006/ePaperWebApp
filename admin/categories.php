@@ -32,6 +32,12 @@ $pageSubtitle = 'Manage content categories and tags';
 $message = '';
 $messageType = '';
 
+// Debug: Log form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    error_log("Categories POST request received");
+    error_log("POST data: " . print_r($_POST, true));
+}
+
 // Handle category actions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     try {
@@ -43,12 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         $action = $_POST['action'] ?? '';
+        error_log("Action: " . $action);
         
         switch ($action) {
             case 'create':
                 $name = trim($_POST['name'] ?? '');
                 $description = trim($_POST['description'] ?? '');
                 $color = $_POST['color'] ?? '#007bff';
+                
+                error_log("Creating category: $name");
                 
                 if (empty($name)) {
                     throw new Exception('Category name is required');
@@ -62,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($result) {
                     $message = 'Category created successfully!';
                     $messageType = 'success';
+                    error_log("Category created successfully");
                 } else {
                     throw new Exception('Failed to create category');
                 }
@@ -122,6 +132,22 @@ try {
     $conn = $db->getConnection();
     
     if ($conn) {
+        // Check if categories table exists, create if not
+        $tableCheck = $conn->query("SHOW TABLES LIKE 'categories'");
+        if ($tableCheck->rowCount() == 0) {
+            $createTable = "
+            CREATE TABLE categories (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                slug VARCHAR(255) NOT NULL UNIQUE,
+                description TEXT,
+                color VARCHAR(7) DEFAULT '#007bff',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )";
+            $conn->exec($createTable);
+        }
+        
         $result = $conn->query("SELECT c.*, COUNT(ec.edition_id) as edition_count 
                                FROM categories c 
                                LEFT JOIN edition_categories ec ON c.id = ec.category_id 
@@ -129,7 +155,7 @@ try {
                                ORDER BY c.name");
         
         if ($result) {
-            while ($row = $result->fetch_assoc()) {
+            while ($row = $result->fetch()) {
                 $categories[] = $row;
             }
         }
@@ -191,24 +217,24 @@ require_once 'includes/admin_layout.php';
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="category-color me-2" 
-                                                 style="width: 20px; height: 20px; background-color: <?php echo htmlspecialchars($category['color']); ?>; border-radius: 4px;"></div>
-                                            <strong><?php echo htmlspecialchars($category['name']); ?></strong>
+                                                 style="width: 20px; height: 20px; background-color: <?php echo htmlspecialchars(($category['color'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>; border-radius: 4px;"></div>
+                                            <strong><?php echo htmlspecialchars(($category['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
                                         </div>
                                     </td>
                                     <td>
-                                        <code><?php echo htmlspecialchars($category['slug']); ?></code>
+                                        <code><?php echo htmlspecialchars(($category['slug'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></code>
                                     </td>
                                     <td>
                                         <span class="text-muted">
                                             <?php 
-                                            $desc = htmlspecialchars($category['description'] ?? '');
+                                            $desc = htmlspecialchars($category['description'] ?? '', ENT_QUOTES, 'UTF-8');
                                             echo strlen($desc) > 50 ? substr($desc, 0, 50) . '...' : $desc;
                                             ?>
                                         </span>
                                     </td>
                                     <td>
                                         <span class="badge bg-info">
-                                            <?php echo number_format($category['edition_count']); ?> editions
+                                            <?php echo number_format(($category['edition_count'] ?? '')); ?> editions
                                         </span>
                                     </td>
                                     <td>
@@ -219,7 +245,7 @@ require_once 'includes/admin_layout.php';
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                    onclick="deleteCategory(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars(addslashes($category['name'])); ?>')"
+                                                    onclick="deleteCategory(<?php echo ($category['id'] ?? ''); ?>, '<?php echo htmlspecialchars(addslashes(($category['name'] ?? ''), ENT_QUOTES, 'UTF-8')); ?>')"
                                                     title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -251,10 +277,10 @@ require_once 'includes/admin_layout.php';
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="d-flex align-items-center">
                             <div class="category-color me-2" 
-                                 style="width: 12px; height: 12px; background-color: <?php echo htmlspecialchars($category['color']); ?>; border-radius: 2px;"></div>
-                            <span class="small"><?php echo htmlspecialchars($category['name']); ?></span>
+                                 style="width: 12px; height: 12px; background-color: <?php echo htmlspecialchars(($category['color'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>; border-radius: 2px;"></div>
+                            <span class="small"><?php echo htmlspecialchars(($category['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
-                        <span class="badge bg-light text-dark"><?php echo $category['edition_count']; ?></span>
+                        <span class="badge bg-light text-dark"><?php echo ($category['edition_count'] ?? ''); ?></span>
                     </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -276,8 +302,8 @@ require_once 'includes/admin_layout.php';
                     <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
                         <i class="fas fa-plus"></i> Add Category
                     </button>
-                    <button type="button" class="btn btn-outline-info" onclick="importCategories()">
-                        <i class="fas fa-file-import"></i> Import Categories
+                    <button type="button" class="btn btn-outline-info" onclick="testAddCategory()">
+                        <i class="fas fa-cog"></i> Test Modal
                     </button>
                     <button type="button" class="btn btn-outline-success" onclick="exportCategories()">
                         <i class="fas fa-file-export"></i> Export Categories
@@ -356,7 +382,34 @@ require_once 'includes/admin_layout.php';
 <?php 
 $additionalJS = "
 <script>
-// Edit category
+document.addEventListener('DOMContentLoaded', function() {
+    // Reset modal when hidden
+    const categoryModal = document.getElementById('categoryModal');
+    if (categoryModal) {
+        categoryModal.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('categoryModalTitle').textContent = 'Add Category';
+            document.getElementById('categoryAction').value = 'create';
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryName').value = '';
+            document.getElementById('categoryDescription').value = '';
+            document.getElementById('categoryColor').value = '#007bff';
+            document.getElementById('categorySaveBtn').textContent = 'Save Category';
+        });
+    }
+});
+
+// Test function to manually open modal
+function testAddCategory() {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+        modal.show();
+        alert('Modal opened successfully!');
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Edit category function
 function editCategory(category) {
     document.getElementById('categoryModalTitle').textContent = 'Edit Category';
     document.getElementById('categoryAction').value = 'update';
@@ -366,37 +419,18 @@ function editCategory(category) {
     document.getElementById('categoryColor').value = category.color || '#007bff';
     document.getElementById('categorySaveBtn').textContent = 'Update Category';
     
-    new bootstrap.Modal(document.getElementById('categoryModal')).show();
+    var modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    modal.show();
 }
 
-// Delete category
+// Delete category function
 function deleteCategory(id, name) {
     document.getElementById('deleteCategoryName').textContent = name;
     document.getElementById('deleteCategoryId').value = id;
     
-    new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
+    var modal = new bootstrap.Modal(document.getElementById('deleteCategoryModal'));
+    modal.show();
 }
-
-// Reset modal when hidden
-document.getElementById('categoryModal').addEventListener('hidden.bs.modal', function() {
-    document.getElementById('categoryModalTitle').textContent = 'Add Category';
-    document.getElementById('categoryAction').value = 'create';
-    document.getElementById('categoryId').value = '';
-    document.getElementById('categoryName').value = '';
-    document.getElementById('categoryDescription').value = '';
-    document.getElementById('categoryColor').value = '#007bff';
-    document.getElementById('categorySaveBtn').textContent = 'Save Category';
-    document.getElementById('categoryForm').classList.remove('was-validated');
-});
-
-// Form validation
-document.getElementById('categoryForm').addEventListener('submit', function(e) {
-    if (!this.checkValidity()) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    this.classList.add('was-validated');
-});
 
 // Import categories
 function importCategories() {

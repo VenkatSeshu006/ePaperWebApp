@@ -228,7 +228,7 @@ require_once 'includes/admin_layout.php';
                                 $db = Database::getInstance();
                                 $conn = $db->getConnection();
                                 if ($conn) {
-                                    echo $conn->server_info;
+                                    echo $conn->getAttribute(PDO::ATTR_SERVER_VERSION);
                                 } else {
                                     echo 'Not connected';
                                 }

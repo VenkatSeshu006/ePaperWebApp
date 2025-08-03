@@ -152,8 +152,7 @@ try {
     
     foreach ($default_settings as $setting) {
         $stmt = $conn->prepare("INSERT IGNORE INTO settings (setting_key, setting_value, setting_type, description) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $setting[0], $setting[1], $setting[2], $setting[3]);
-        $stmt->execute();
+        $stmt->execute([$setting[0], $setting[1], $setting[2], $setting[3]]);
     }
     echo "<p>✓ Default settings inserted</p>\n";
     

@@ -30,7 +30,7 @@ try {
     
     if ($result) {
         echo "✅ Editions query successful\n";
-        $edition = $result->fetch_assoc();
+        $edition = $result->fetch();
         if ($edition) {
             echo "Found edition: " . $edition['title'] . "\n";
         }

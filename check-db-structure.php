@@ -12,14 +12,14 @@ try {
     $result = $conn->query('DESCRIBE editions');
     
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo "- " . $row['Field'] . " (" . $row['Type'] . ")\n";
         }
     } else {
         echo "Error: " . $conn->error . "\n";
     }
     
-    $conn->close();
+    $conn = null;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }

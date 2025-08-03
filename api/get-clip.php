@@ -28,10 +28,9 @@ try {
         WHERE c.id = ?
     ");
     
-    $stmt->bind_param('i', $clipId);
-    $stmt->execute();
+    $stmt->execute([$clipId]);
     $result = $stmt->get_result();
-    $clip = $result->fetch_assoc();
+    $clip = $result->fetch();
     
     if (!$clip) {
         throw new Exception('Clip not found');

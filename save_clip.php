@@ -65,35 +65,12 @@ try {
     // Save clip information to database
     $title = "Clip from Edition " . $editionId;
     $description = "Clipped image from digital newspaper";
-    $created_at = date('Y-m-d H:i:s');
     $page_number = $imageId; // Use image_id as page number
-
-    // Check if clips table exists, if not create it with correct structure
-    $createTableSql = "
-        CREATE TABLE IF NOT EXISTS clips (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            edition_id INT NOT NULL,
-            image_id INT DEFAULT 1,
-            page_number INT NOT NULL DEFAULT 1,
-            x INT NOT NULL DEFAULT 0,
-            y INT NOT NULL DEFAULT 0,
-            width INT NOT NULL DEFAULT 100,
-            height INT NOT NULL DEFAULT 100,
-            image_path VARCHAR(500),
-            title VARCHAR(255),
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_edition_id (edition_id),
-            INDEX idx_created_at (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ";
-
-    $conn->query($createTableSql);
 
     // Insert clip record with correct column names
     $stmt = $conn->prepare("
-        INSERT INTO clips (edition_id, image_id, page_number, x, y, width, height, image_path, title, description, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO clips (edition_id, image_id, page_number, x, y, width, height, image_path, title, description) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     // Set default values for crop coordinates (these would normally come from the cropper)
@@ -102,15 +79,15 @@ try {
     $width = 200;
     $height = 200;
     
-    $stmt->bind_param("iiiiiiissss", $editionId, $imageId, $page_number, $x, $y, $width, $height, $filePath, $title, $description, $created_at);
+    $success = $stmt->execute([$editionId, $imageId, $page_number, $x, $y, $width, $height, $filePath, $title, $description]);
     
-    if (!$stmt->execute()) {
+    if (!$success) {
         // If database insert fails, clean up the file
         unlink($filePath);
         throw new Exception('Failed to save clip information');
     }
 
-    $clipId = $conn->insert_id;
+    $clipId = $conn->lastInsertId();
 
     // Return success response
     echo json_encode([

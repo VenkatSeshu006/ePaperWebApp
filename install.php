@@ -169,7 +169,7 @@ function isDatabaseConnected() {
 function closeDatabaseConnection() {
     global \$conn;
     if (\$conn) {
-        \$conn->close();
+        \$conn = null;
         \$conn = null;
     }
 }
@@ -279,7 +279,7 @@ require_once 'includes/database.php';
 $testConn = getConnection();
 if ($testConn) {
     echo "   Database connection test: ✅\n";
-    $testConn->close();
+    $conn = null;
 } else {
     echo "   Database connection test: ❌\n";
 }

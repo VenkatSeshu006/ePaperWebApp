@@ -8,7 +8,7 @@ session_start();
 define('ADMIN_PAGE', true);
 
 // Include configuration first
-require_once '../config/config.php';
+require_once '../config.php';
 
 // Simple authentication check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -55,12 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
         $description = $_POST['description'] ?? '';
         $category = $_POST['category'] ?? 'general';
         $publication_date = $_POST['publication_date'] ?? date('Y-m-d');
+        $status = $_POST['status'] ?? 'published'; // Default to published
         
         if (empty($title)) {
             throw new Exception('Title is required');
         }
         
-        $file = $_FILES['pdf_file'];
+        $file = $_FILES['pdf_file'] ?? '';
         
         if ($file['error'] !== UPLOAD_ERR_OK) {
             throw new Exception('File upload error: ' . $file['error']);
@@ -79,10 +80,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
         $filename = 'edition.pdf';
         $filepath = $uploadDir . $filename;
         
-        if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            // Generate thumbnail (simplified)
+        if (move_uploaded_file(($file['tmp_name'] ?? ''), $filepath)) {
+            // Get file size
+            $fileSize = filesize($filepath);
+            
+            // Generate thumbnail using PDF first page (simplified approach)
             $thumbnailPath = $uploadDir . 'thumbnail.png';
-            // For now, just copy a placeholder or generate a simple thumbnail
+            
+            // Try to generate thumbnail using Ghostscript if available
+            $gsCommand = defined('GHOSTSCRIPT_COMMAND') ? GHOSTSCRIPT_COMMAND : 'gswin64c.exe';
+            $thumbnailCmd = "\"$gsCommand\" -dNOPAUSE -dBATCH -sDEVICE=png16m -dFirstPage=1 -dLastPage=1 -r150 -dGraphicsAlphaBits=4 -dTextAlphaBits=4 -sOutputFile=\"$thumbnailPath\" \"$filepath\" 2>&1";
+            
+            $thumbnailOutput = [];
+            $thumbnailReturn = 0;
+            exec($thumbnailCmd, $thumbnailOutput, $thumbnailReturn);
+            
+            // Try to get total pages count
+            $totalPages = 0;
+            if ($thumbnailReturn === 0) {
+                // If thumbnail generation succeeded, try to get page count
+                $pageCountCmd = "$gsCommand -q -dNODISPLAY -c \"($filepath) (r) file runpdfbegin pdfpagecount = quit\" 2>&1";
+                $pageOutput = [];
+                $pageReturn = 0;
+                exec($pageCountCmd, $pageOutput, $pageReturn);
+                if ($pageReturn === 0 && !empty($pageOutput)) {
+                    $totalPages = (int)trim($pageOutput[0]);
+                }
+            }
             
             // Insert into database
             $result = $edition->create([
@@ -90,13 +114,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
                 'description' => $description,
                 'category' => $category,
                 'publication_date' => $publication_date,
-                'pdf_path' => str_replace('../', '', $filepath),
+                'pdf_path' => str_replace('../', '', $filepath), // Use pdf_path to match database
                 'thumbnail_path' => file_exists($thumbnailPath) ? str_replace('../', '', $thumbnailPath) : '',
+                'status' => $status,
+                'file_size' => $fileSize,
+                'total_pages' => $totalPages
             ]);
             
             if ($result) {
-                $message = 'Edition uploaded successfully!';
-                $messageType = 'success';
+                // Automatically process PDF to images with enhanced quality
+                try {
+                    require_once '../enhanced_quality_processor.php';
+                    $processor = new EnhancedQualityPDFProcessor();
+                    $pages = $processor->processWithBestQuality($filepath, $result);
+                    
+                    // Run comprehensive post-processing to ensure homepage compatibility
+                    require_once '../edition_post_processor.php';
+                    $postProcessor = new EditionPostProcessor();
+                    $postResults = $postProcessor->processNewEdition($result);
+                    
+                    $statusText = $status === 'draft' ? 'uploaded as draft' : 'uploaded and published';
+                    $message = "Edition $statusText successfully!";
+                    
+                    if (!empty($pages)) {
+                        $message .= " (" . count($pages) . " high-quality pages converted)";
+                    } elseif ($totalPages > 0) {
+                        $message .= " ($totalPages pages detected)";
+                    }
+                    
+                    // Add post-processing results
+                    if ($postResults['homepage_ready']) {
+                        $message .= " [✅ Homepage ready]";
+                    }
+                    if (!empty($postResults['message'])) {
+                        $message .= " " . $postResults['message'];
+                    }
+                    
+                    $messageType = 'success';
+                } catch (Exception $e) {
+                    $statusText = $status === 'draft' ? 'uploaded as draft' : 'uploaded and published';
+                    $message = "Edition $statusText successfully, but PDF conversion failed: " . $e->getMessage();
+                    $messageType = 'warning';
+                }
             } else {
                 throw new Exception('Failed to save edition to database');
             }
@@ -187,16 +246,30 @@ require_once 'includes/admin_layout.php';
                         
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="pdf_file" class="form-label">
-                                    <i class="fas fa-file-pdf"></i>
-                                    PDF File *
+                                <label for="status" class="form-label">
+                                    <i class="fas fa-flag"></i>
+                                    Status
                                 </label>
-                                <input type="file" class="form-control" id="pdf_file" name="pdf_file" 
-                                       accept=".pdf" required>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="published">Publish Immediately</option>
+                                    <option value="draft">Save as Draft</option>
+                                </select>
                                 <div class="form-text">
-                                    Select a PDF file to upload (max 50MB)
+                                    Published editions are immediately visible to users
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pdf_file" class="form-label">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF File *
+                        </label>
+                        <input type="file" class="form-control" id="pdf_file" name="pdf_file" 
+                               accept=".pdf" required>
+                        <div class="form-text">
+                            Select a PDF file to upload (max 50MB)
                         </div>
                     </div>
                     

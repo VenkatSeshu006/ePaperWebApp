@@ -15,26 +15,25 @@ class Clip {
      * Create a new clip
      */
     public function create($data) {
+        $conn = $this->db->getConnection();
         $sql = "INSERT INTO clips (edition_id, page_number, title, description, image_path, 
-                original_x, original_y, width, height, file_size, ip_address, user_agent) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                x, y, width, height) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        $this->db->query($sql, [
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([
             $data['edition_id'],
             $data['page_number'],
             $data['title'] ?? null,
             $data['description'] ?? null,
             $data['image_path'],
-            $data['original_x'],
-            $data['original_y'],
+            $data['x'],
+            $data['y'],
             $data['width'],
-            $data['height'],
-            $data['file_size'] ?? 0,
-            $data['ip_address'] ?? $_SERVER['REMOTE_ADDR'] ?? null,
-            $data['user_agent'] ?? $_SERVER['HTTP_USER_AGENT'] ?? null
+            $data['height']
         ]);
         
-        return $this->db->lastInsertId();
+        return $conn->lastInsertId();
     }
     
     /**

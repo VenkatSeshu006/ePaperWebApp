@@ -74,6 +74,8 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
             z-index: 1000;
             transition: all 0.3s ease;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         .admin-sidebar::-webkit-scrollbar {
@@ -109,7 +111,8 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
 
         /* Navigation Menu */
         .sidebar-nav {
-            padding: 20px 0;
+            padding: 20px 0 20px 0; /* Reduced bottom padding since user section is no longer fixed */
+            flex: 1; /* Take up available space */
         }
 
         .nav-section {
@@ -173,17 +176,13 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
 
         /* User Info */
         .sidebar-user {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.25) 100%);
-            backdrop-filter: blur(10px);
+            background: rgba(0,0,0,0.4);
             border-top: 1px solid rgba(255,255,255,0.15);
+            margin-top: auto; /* Push to bottom using flexbox */
         }
 
         .user-profile {
-            padding: 16px 20px 12px;
+            padding: 20px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
@@ -193,57 +192,59 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
         }
 
         .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, var(--admin-accent) 0%, #2980b9 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 12px;
-            font-size: 1rem;
+            margin-right: 15px;
+            font-size: 1.2rem;
             color: white;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
-            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+            border: 2px solid rgba(255,255,255,0.3);
         }
 
         .user-details h6 {
-            margin: 0 0 2px 0;
-            font-size: 0.9rem;
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
             color: white;
             font-weight: 600;
         }
 
         .user-details small {
             color: rgba(255,255,255,0.8);
-            font-size: 0.75rem;
-            font-weight: 500;
+            font-size: 0.9rem;
+            font-weight: 400;
         }
 
         .user-actions {
-            padding: 8px 20px 16px;
+            padding: 0 20px 20px;
         }
 
         .logout-link {
             display: flex;
             align-items: center;
-            padding: 8px 12px;
+            justify-content: center;
+            padding: 12px 16px;
             color: rgba(255,255,255,0.9);
             text-decoration: none;
-            border-radius: 6px;
+            border-radius: 8px;
             transition: all 0.3s ease;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
             background: rgba(255,255,255,0.1);
+            width: 100%;
         }
 
         .logout-link:hover {
             background: rgba(231, 76, 60, 0.8);
             border-color: rgba(231, 76, 60, 0.8);
             color: white;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(231, 76, 60, 0.4);
         }
 
         .logout-link i {
@@ -453,12 +454,6 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
                             <span>Dashboard</span>
                         </a>
                     </div>
-                    <div class="nav-item">
-                        <a href="index.php" class="nav-link <?php echo $currentPage === 'index' ? 'active' : ''; ?>">
-                            <i class="fas fa-home"></i>
-                            <span>Overview</span>
-                        </a>
-                    </div>
                 </div>
 
                 <!-- Content Management -->
@@ -514,7 +509,7 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
                     <div class="nav-item">
                         <a href="users.php" class="nav-link <?php echo $currentPage === 'users' ? 'active' : ''; ?>">
                             <i class="fas fa-users"></i>
-                            <span>User Management</span>
+                            <span>Users</span>
                         </a>
                     </div>
                 </div>
@@ -526,12 +521,6 @@ $adminUser = $_SESSION['admin_user'] ?? 'Admin';
                         <a href="setup-database.php" class="nav-link <?php echo $currentPage === 'setup-database' ? 'active' : ''; ?>">
                             <i class="fas fa-database"></i>
                             <span>Database Setup</span>
-                        </a>
-                    </div>
-                    <div class="nav-item">
-                        <a href="test-database.php" class="nav-link <?php echo $currentPage === 'test-database' ? 'active' : ''; ?>">
-                            <i class="fas fa-vial"></i>
-                            <span>Database Test</span>
                         </a>
                     </div>
                     <div class="nav-item">

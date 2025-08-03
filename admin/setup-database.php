@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
             )"
         ];
         
-        $conn->autocommit(false);
+        $conn->beginTransaction();
         
         foreach ($sqlCommands as $i => $sql) {
             $stepName = [
@@ -140,7 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
                         'message' => 'Created successfully'
                     ];
                 } else {
-                    throw new Exception($conn->error);
+                    $errorInfo = $conn->errorInfo();
+                    throw new Exception($errorInfo[2] ?? 'Unknown database error');
                 }
             } catch (Exception $e) {
                 $setupSteps[] = [
@@ -163,8 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
         
         $stmt = $conn->prepare("INSERT IGNORE INTO categories (slug, name, description, color) VALUES (?, ?, ?, ?)");
         foreach ($defaultCategories as $cat) {
-            $stmt->bind_param("ssss", $cat[0], $cat[1], $cat[2], $cat[3]);
-            $stmt->execute();
+            $stmt->execute([$cat[0], $cat[1], $cat[2], $cat[3]]);
         }
         
         $setupSteps[] = [
@@ -174,7 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
         ];
         
         $conn->commit();
-        $conn->autocommit(true);
         
         $message = 'Database setup completed successfully!';
         $messageType = 'success';
@@ -182,7 +181,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
     } catch (Exception $e) {
         if (isset($conn)) {
             $conn->rollback();
-            $conn->autocommit(true);
         }
         $message = 'Database setup failed: ' . $e->getMessage();
         $messageType = 'danger';
@@ -200,13 +198,13 @@ try {
         
         foreach ($tables as $table) {
             $result = $conn->query("SHOW TABLES LIKE '$table'");
-            $exists = $result && $result->num_rows > 0;
+            $exists = $result && $result->rowCount() > 0;
             
             $count = 0;
             if ($exists) {
                 $countResult = $conn->query("SELECT COUNT(*) as count FROM $table");
                 if ($countResult) {
-                    $count = $countResult->fetch_assoc()['count'];
+                    $count = $countResult->fetch()['count'];
                 }
             }
             

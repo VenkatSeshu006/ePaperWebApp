@@ -1,13 +1,19 @@
 <?php
 /**
- * Save Clip API
- * Handles saving newspaper clips with metadata
+ * Enhanced Save Clip API
+ * Handles comprehensive clip saving with image processing
  */
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -17,8 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Check for required files
 $requiredFiles = [
-    '../includes/database.php',
-    '../classes/Clip.php'
+    '../includes/database.php'
 ];
 
 foreach ($requiredFiles as $file) {
@@ -31,11 +36,10 @@ foreach ($requiredFiles as $file) {
 }
 
 require_once '../includes/database.php';
-require_once '../classes/Clip.php';
 
 try {
-    // Initialize models
-    $clipModel = new Clip();
+    // Get database connection
+    $conn = getConnection();
     
     // Get POST data
     $input = json_decode(file_get_contents('php://input'), true);
@@ -45,9 +49,140 @@ try {
     }
     
     // Validate required fields
-    $required = ['edition_id', 'page_number', 'image_data', 'crop_data'];
+    $required = ['edition_id', 'page_number', 'x', 'y', 'width', 'height', 'image_data'];
     foreach ($required as $field) {
         if (!isset($input[$field])) {
+            throw new Exception("Missing required field: $field");
+        }
+    }
+    
+    // Validate data types and ranges
+    $editionId = (int)$input['edition_id'];
+    $pageNumber = (int)$input['page_number'];
+    $x = (int)$input['x'];
+    $y = (int)$input['y'];
+    $width = (int)$input['width'];
+    $height = (int)$input['height'];
+    $imageData = $input['image_data'];
+    
+    if ($editionId <= 0 || $pageNumber <= 0 || $width <= 0 || $height <= 0) {
+        throw new Exception('Invalid clip dimensions or IDs');
+    }
+    
+    // Validate image data format
+    if (!preg_match('/^data:image\/(jpeg|jpg|png);base64,(.+)$/', $imageData, $matches)) {
+        throw new Exception('Invalid image data format');
+    }
+    
+    $imageFormat = $matches[1];
+    $base64Data = $matches[2];
+    
+    // Decode base64 image
+    $imageContent = base64_decode($base64Data);
+    if ($imageContent === false) {
+        throw new Exception('Failed to decode image data');
+    }
+    
+    // Create uploads directory structure
+    $uploadsDir = '../uploads/clips';
+    $yearMonth = date('Y-m');
+    $clipDir = "$uploadsDir/$yearMonth";
+    
+    if (!is_dir($clipDir)) {
+        if (!mkdir($clipDir, 0755, true)) {
+            throw new Exception('Failed to create clips directory');
+        }
+    }
+    
+    // Generate unique filename
+    $clipId = uniqid('clip_', true);
+    $filename = $clipId . '.jpg';
+    $filepath = "$clipDir/$filename";
+    $relativePath = "uploads/clips/$yearMonth/$filename";
+    
+    // Save image file
+    if (!file_put_contents($filepath, $imageContent)) {
+        throw new Exception('Failed to save image file');
+    }
+    
+    // Get client information
+    $clientInfo = [
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        'referer' => $_SERVER['HTTP_REFERER'] ?? ''
+    ];
+    
+    // Insert clip record into database
+    $sql = "INSERT INTO clips (
+        edition_id, 
+        page_number, 
+        x, 
+        y, 
+        width, 
+        height, 
+        image_path, 
+        client_ip, 
+        user_agent, 
+        created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Database prepare failed: ' . $conn->error);
+    }
+    
+    $success = $stmt->execute([
+        $editionId,
+        $pageNumber,
+        $x,
+        $y,
+        $width,
+        $height,
+        $relativePath,
+        $clientInfo['ip_address'],
+        $clientInfo['user_agent']
+    ]);
+    
+    if (!$success) {
+        // Clean up file if database insert failed
+        if (file_exists($filepath)) {
+            unlink($filepath);
+        }
+        throw new Exception('Failed to save clip to database');
+    }
+    
+    $insertedId = $conn->lastInsertId();
+    
+    // Generate clip URL
+    $clipUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . 
+               $_SERVER['HTTP_HOST'] . 
+               dirname(dirname($_SERVER['PHP_SELF'])) . 
+               '/view-clip.php?id=' . $insertedId;
+    
+    // Return success response
+    echo json_encode([
+        'success' => true,
+        'clip_id' => $insertedId,
+        'clip_url' => $clipUrl,
+        'image_path' => $relativePath,
+        'message' => 'Clip saved successfully',
+        'dimensions' => [
+            'width' => $width,
+            'height' => $height,
+            'x' => $x,
+            'y' => $y
+        ]
+    ]);
+    
+} catch (Exception $e) {
+    error_log("Clip save error: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+}
+?>
             throw new Exception("Missing required field: $field");
         }
     }
@@ -107,14 +242,11 @@ try {
         'page_number' => $pageNumber,
         'title' => $input['title'] ?? 'Untitled Clip',
         'description' => $input['description'] ?? '',
-        'category' => $input['category'] ?? 'general',
         'image_path' => 'uploads/clips/' . $filename,
-        'crop_x' => (int)$cropData['x'],
-        'crop_y' => (int)$cropData['y'],
-        'crop_width' => (int)$cropData['width'],
-        'crop_height' => (int)$cropData['height'],
-        'user_id' => $_SESSION['user_id'] ?? null,
-        'created_at' => date('Y-m-d H:i:s')
+        'x' => (int)$cropData['x'],
+        'y' => (int)$cropData['y'],
+        'width' => (int)$cropData['width'],
+        'height' => (int)$cropData['height']
     ];
     
     $clipId = $clipModel->create($clipData);

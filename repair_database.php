@@ -93,7 +93,7 @@ try {
     echo "<h3>Checking sample data...</h3>\n";
     
     $result = $conn->query("SELECT COUNT(*) as count FROM editions WHERE id = 1");
-    $row = $result->fetch_assoc();
+    $row = $result->fetch();
     
     if ($row['count'] == 0) {
         // Insert sample edition
@@ -123,7 +123,7 @@ try {
     foreach ($tables as $table) {
         $result = $conn->query("SELECT COUNT(*) as count FROM $table");
         if ($result) {
-            $row = $result->fetch_assoc();
+            $row = $result->fetch();
             echo "<p>✓ Table '$table': {$row['count']} records</p>\n";
         }
     }

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Cropper Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .image-container {
+            max-width: 100%;
+            margin: 20px 0;
+        }
+        #testImage {
+            max-width: 100%;
+            display: block;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cropper.js Test</h1>
+        
+        <div class="controls">
+            <button class="btn" onclick="initCropper()">Initialize Cropper</button>
+            <button class="btn" onclick="destroyCropper()">Destroy Cropper</button>
+            <button class="btn" onclick="getCropData()">Get Crop Data</button>
+        </div>
+        
+        <div class="image-container">
+            <!-- Use a sample image URL -->
+            <img id="testImage" src="https://picsum.photos/800/600" alt="Test Image">
+        </div>
+        
+        <div id="status" class="status">Ready to test...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script>
+        let cropper = null;
+        const statusEl = document.getElementById('status');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            statusEl.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+
+        function initCropper() {
+            const image = document.getElementById('testImage');
+            
+            log('Initializing cropper...');
+            log(`Image loaded: ${image.complete}`);
+            log(`Image dimensions: ${image.naturalWidth}x${image.naturalHeight}`);
+            log(`Cropper available: ${typeof Cropper !== 'undefined'}`);
+
+            if (cropper) {
+                log('Destroying existing cropper...');
+                cropper.destroy();
+            }
+
+            try {
+                cropper = new Cropper(image, {
+                    aspectRatio: NaN,
+                    viewMode: 1,
+                    dragMode: 'crop',
+                    autoCropArea: 0.5,
+                    guides: true,
+                    center: true,
+                    highlight: true,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    ready: function() {
+                        log('Cropper ready! You should be able to drag/resize now.');
+                    },
+                    crop: function(event) {
+                        log(`Crop: x=${Math.round(event.detail.x)}, y=${Math.round(event.detail.y)}, w=${Math.round(event.detail.width)}, h=${Math.round(event.detail.height)}`);
+                    },
+                    cropstart: function(event) {
+                        log(`Crop start: ${event.detail.action}`);
+                    },
+                    cropmove: function(event) {
+                        log(`Crop move: ${event.detail.action}`);
+                    },
+                    cropend: function(event) {
+                        log(`Crop end: ${event.detail.action}`);
+                    }
+                });
+                
+                log('Cropper created successfully!');
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        }
+
+        function destroyCropper() {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+                log('Cropper destroyed');
+            } else {
+                log('No cropper to destroy');
+            }
+        }
+
+        function getCropData() {
+            if (cropper) {
+                const data = cropper.getData();
+                log(`Crop Data: x=${Math.round(data.x)}, y=${Math.round(data.y)}, w=${Math.round(data.width)}, h=${Math.round(data.height)}`);
+            } else {
+                log('No cropper initialized');
+            }
+        }
+
+        // Auto-initialize when image loads
+        document.getElementById('testImage').addEventListener('load', function() {
+            log('Image loaded, auto-initializing cropper...');
+            setTimeout(initCropper, 100);
+        });
+    </script>
+</body>
+</html>

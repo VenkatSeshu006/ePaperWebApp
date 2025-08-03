@@ -69,7 +69,7 @@ class Category {
         ];
         
         $result = $this->db->query($sql, $params);
-        return $result ? $this->db->getLastInsertId() : false;
+        return $result ? $this->db->lastInsertId() : false;
     }
     
     /**

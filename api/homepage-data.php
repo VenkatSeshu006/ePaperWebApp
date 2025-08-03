@@ -45,7 +45,7 @@ try {
     }
     
     $editions = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetch()) {
         // Process the edition data
         $edition = [
             'id' => (int)$row['id'],
@@ -74,12 +74,11 @@ try {
         ";
         
         $pages_stmt = $conn->prepare($pages_sql);
-        $pages_stmt->bind_param('i', $row['id']);
-        $pages_stmt->execute();
+        $stmt->execute([$row['id']]);
         $pages_result = $pages_stmt->get_result();
         
         $pages = [];
-        while ($page = $pages_result->fetch_assoc()) {
+        while ($page = $pages_result->fetch()) {
             $pages[] = [
                 'page_number' => (int)$page['page_number'],
                 'image_path' => $page['image_path'],
@@ -104,7 +103,7 @@ try {
     ";
     
     $stats_result = $conn->query($stats_sql);
-    $stats = $stats_result->fetch_assoc();
+    $stats = $stats_result->fetch();
     
     // Get recent clips
     $clips_sql = "
@@ -119,7 +118,7 @@ try {
     $clips = [];
     
     if ($clips_result) {
-        while ($clip = $clips_result->fetch_assoc()) {
+        while ($clip = $clips_result->fetch()) {
             $clips[] = [
                 'id' => (int)$clip['id'],
                 'edition_id' => (int)$clip['edition_id'],

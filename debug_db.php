@@ -12,7 +12,7 @@ try {
     echo "=== SETTINGS TABLE STRUCTURE ===\n";
     $result = $conn->query("DESCRIBE settings");
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo $row['Field'] . " | " . $row['Type'] . " | " . $row['Null'] . " | " . $row['Key'] . "\n";
         }
     } else {
@@ -22,7 +22,7 @@ try {
     echo "\n=== EDITIONS TABLE STRUCTURE ===\n";
     $result = $conn->query("DESCRIBE editions");
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo $row['Field'] . " | " . $row['Type'] . " | " . $row['Null'] . " | " . $row['Key'] . "\n";
         }
     } else {
@@ -33,7 +33,7 @@ try {
     $result = $conn->query("SELECT setting_key, setting_value, setting_type FROM settings LIMIT 5");
     if ($result) {
         echo "✅ Settings query successful\n";
-        while ($row = $result->fetch_assoc()) {
+        while ($row = $result->fetch()) {
             echo $row['setting_key'] . " => " . $row['setting_value'] . "\n";
         }
     } else {
@@ -44,7 +44,7 @@ try {
     $result = $conn->query("SELECT id, title, date, thumbnail_path FROM editions ORDER BY date DESC LIMIT 1");
     if ($result) {
         echo "✅ Editions query successful\n";
-        $edition = $result->fetch_assoc();
+        $edition = $result->fetch();
         if ($edition) {
             print_r($edition);
         } else {

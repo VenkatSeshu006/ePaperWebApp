@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latest Edition System - Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .demo-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .step { margin: 15px 0; }
+        .step-number { background: #007bff; color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; }
+        h1 { color: #007bff; }
+        h2 { color: #495057; }
+        code { background: #f8f9fa; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🗞️ Latest Edition System - How It Works</h1>
+    
+    <div class="demo-box success">
+        <h2>✅ System Status: ACTIVE</h2>
+        <p>The home page now automatically displays the latest published edition!</p>
+    </div>
+    
+    <h2>📋 How the Automatic Latest Edition System Works</h2>
+    
+    <div class="step">
+        <span class="step-number">1</span>
+        <strong>Upload New Edition:</strong> When you upload a new edition via <code>/admin/upload.php</code>
+    </div>
+    
+    <div class="step">
+        <span class="step-number">2</span>
+        <strong>Choose Status:</strong> Select "Publish Immediately" (default) or "Save as Draft"
+    </div>
+    
+    <div class="step">
+        <span class="step-number">3</span>
+        <strong>Automatic Update:</strong> If published, it immediately becomes the home page edition
+    </div>
+    
+    <div class="step">
+        <span class="step-number">4</span>
+        <strong>Public Visibility:</strong> Users see the new edition when they visit the home page
+    </div>
+    
+    <div class="demo-box info">
+        <h3>🔧 Technical Implementation</h3>
+        <p><strong>Database Query:</strong></p>
+        <code>SELECT * FROM editions WHERE status = 'published' ORDER BY date DESC, created_at DESC LIMIT 1</code>
+        
+        <p><strong>Key Features:</strong></p>
+        <ul>
+            <li>Only published editions appear on home page</li>
+            <li>Draft editions remain hidden until published</li>
+            <li>Newest publication date takes priority</li>
+            <li>No caching - updates are immediate</li>
+        </ul>
+    </div>
+    
+    <h2>🎯 Publishing Workflow</h2>
+    
+    <div class="demo-box">
+        <h3>Option A: Immediate Publishing (Recommended)</h3>
+        <ol>
+            <li>Go to <a href="/admin/upload.php" target="_blank">Admin Upload</a></li>
+            <li>Fill in edition details</li>
+            <li>Keep "Publish Immediately" selected (default)</li>
+            <li>Click "Upload Edition"</li>
+            <li>✅ Edition appears on home page instantly</li>
+        </ol>
+    </div>
+    
+    <div class="demo-box">
+        <h3>Option B: Draft First, Publish Later</h3>
+        <ol>
+            <li>Upload with "Save as Draft" selected</li>
+            <li>Go to <a href="/admin/manage_editions.php" target="_blank">Manage Editions</a></li>
+            <li>Click the publish button (✈️) next to the draft</li>
+            <li>✅ Edition moves to home page</li>
+        </ol>
+    </div>
+    
+    <h2>🔍 Testing the System</h2>
+    
+    <div class="demo-box">
+        <p><strong>To verify it's working:</strong></p>
+        <ol>
+            <li>Note the current home page edition title</li>
+            <li>Upload a new edition with "Publish Immediately"</li>
+            <li>Visit the <a href="/" target="_blank">home page</a></li>
+            <li>✅ You should see your new edition displayed</li>
+        </ol>
+    </div>
+    
+    <h2>📱 User Experience</h2>
+    
+    <div class="demo-box success">
+        <p><strong>For your readers:</strong></p>
+        <ul>
+            <li>Always see the most current published edition</li>
+            <li>No manual refresh needed</li>
+            <li>Consistent URL (always homepage)</li>
+            <li>Can still access older editions via archive</li>
+        </ul>
+    </div>
+    
+    <hr style="margin: 40px 0;">
+    
+    <p style="text-align: center; color: #6c757d;">
+        <small>Latest Edition System is now active and ready to use! 🚀</small>
+    </p>
+    
+</body>
+</html>

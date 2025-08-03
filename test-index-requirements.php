@@ -16,7 +16,7 @@ try {
     if ($result) {
         echo "   ✓ Editions query successful\n";
         if ($result->num_rows > 0) {
-            $latest = $result->fetch_assoc();
+            $latest = $result->fetch();
             echo "   ✓ Found latest edition: " . $latest['title'] . "\n";
         } else {
             echo "   ! No editions found in database\n";

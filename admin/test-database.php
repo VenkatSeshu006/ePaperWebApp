@@ -42,11 +42,12 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             $conn = $db->getConnection();
             
             if ($conn) {
+                $serverVersion = $conn->getAttribute(PDO::ATTR_SERVER_VERSION);
                 $testResults[] = [
                     'test' => 'Database Connection',
                     'status' => 'success',
                     'message' => 'Successfully connected to database',
-                    'details' => 'Server: ' . $conn->server_info
+                    'details' => 'Server: MySQL ' . $serverVersion
                 ];
             } else {
                 $testResults[] = [
@@ -73,7 +74,7 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             
             foreach ($requiredTables as $table) {
                 $result = $conn->query("SHOW TABLES LIKE '$table'");
-                if ($result && $result->num_rows > 0) {
+                if ($result && $result->rowCount() > 0) {
                     $existingTables[] = $table;
                 } else {
                     $missingTables[] = $table;
@@ -102,7 +103,7 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $result = $conn->query("SELECT COUNT(*) as count FROM editions");
                 if ($result) {
-                    $count = $result->fetch_assoc()['count'];
+                    $count = $result->fetch()['count'];
                     $testResults[] = [
                         'test' => 'Read Operations',
                         'status' => 'success',
@@ -126,16 +127,16 @@ if (isset($_GET['run_tests']) || $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($conn) && $conn && isset($_POST['test_write'])) {
             try {
                 $testTitle = 'Test Edition ' . date('Y-m-d H:i:s');
+                $description = "Test description";
+                $status = "draft";
                 $stmt = $conn->prepare("INSERT INTO editions (title, description, status) VALUES (?, ?, ?)");
-                $stmt->bind_param("sss", $testTitle, "Test description", "draft");
                 
-                if ($stmt->execute()) {
-                    $insertId = $conn->insert_id;
+                if ($stmt->execute([$testTitle, $description, $status])) {
+                    $insertId = $conn->lastInsertId();
                     
                     // Clean up test data
                     $deleteStmt = $conn->prepare("DELETE FROM editions WHERE id = ?");
-                    $deleteStmt->bind_param("i", $insertId);
-                    $deleteStmt->execute();
+                    $deleteStmt->execute([$insertId]);
                     
                     $testResults[] = [
                         'test' => 'Write Operations',
@@ -228,13 +229,19 @@ try {
     $conn = $db->getConnection();
     
     if ($conn) {
-        $dbInfo = [
-            'server_info' => $conn->server_info,
-            'client_info' => $conn->client_info,
-            'host_info' => $conn->host_info,
-            'protocol_version' => $conn->protocol_version,
-            'charset' => $conn->character_set_name(),
-        ];
+        try {
+            $dbInfo = [
+                'server_version' => $conn->getAttribute(PDO::ATTR_SERVER_VERSION),
+                'client_version' => $conn->getAttribute(PDO::ATTR_CLIENT_VERSION),
+                'connection_status' => $conn->getAttribute(PDO::ATTR_CONNECTION_STATUS),
+                'driver_name' => $conn->getAttribute(PDO::ATTR_DRIVER_NAME),
+                'database_name' => DB_NAME,
+            ];
+        } catch (Exception $e) {
+            $dbInfo = [
+                'error' => 'Could not retrieve connection info: ' . $e->getMessage()
+            ];
+        }
     }
 } catch (Exception $e) {
     $dbInfo['error'] = $e->getMessage();
@@ -333,11 +340,11 @@ require_once 'includes/admin_layout.php';
                     <table class="table table-sm">
                         <tr>
                             <td><strong>Server Version:</strong></td>
-                            <td><?php echo htmlspecialchars($dbInfo['server_info']); ?></td>
+                            <td><?php echo htmlspecialchars($dbInfo['server_version'] ?? 'N/A'); ?></td>
                         </tr>
                         <tr>
                             <td><strong>Client Version:</strong></td>
-                            <td><?php echo htmlspecialchars($dbInfo['client_info']); ?></td>
+                            <td><?php echo htmlspecialchars($dbInfo['client_version'] ?? 'N/A'); ?></td>
                         </tr>
                         <tr>
                             <td><strong>Host:</strong></td>

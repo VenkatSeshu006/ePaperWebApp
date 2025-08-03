@@ -82,5 +82,5 @@ if ($total_time < 100) {
 
 echo "</body>\n</html>";
 
-if (isset($conn)) $conn->close();
+if (isset($conn)) $conn = null;
 ?>

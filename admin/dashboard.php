@@ -4,6 +4,9 @@
  * Main administrative interface for E-Paper CMS
  */
 
+// Suppress PHP warnings for cleaner dashboard display
+error_reporting(E_ERROR | E_PARSE);
+
 session_start();
 define('ADMIN_PAGE', true);
 
@@ -115,6 +118,31 @@ if (!$isAuthenticated) {
             .form-control {
                 border-left: none;
             }
+            
+            /* Tool Cards Styles */
+            .tool-card {
+                background: #fff;
+                border: 1px solid #e9ecef;
+                border-radius: 12px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            }
+            
+            .tool-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                border-color: #007bff;
+            }
+            
+            .tool-card .btn {
+                border-radius: 8px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+            
+            .tool-card .btn:hover {
+                transform: translateY(-2px);
+            }
         </style>
     </head>
     <body>
@@ -187,20 +215,20 @@ try {
         // Get total editions
         $result = $conn->query("SELECT COUNT(*) as count FROM editions");
         if ($result) {
-            $stats['total_editions'] = $result->fetch_assoc()['count'] ?? 0;
+            $stats['total_editions'] = $result->fetch()['count'] ?? 0;
         }
         
         // Get total views
         $result = $conn->query("SELECT SUM(views) as total FROM editions");
         if ($result) {
-            $stats['total_views'] = $result->fetch_assoc()['total'] ?? 0;
+            $stats['total_views'] = $result->fetch()['total'] ?? 0;
         }
         
         // Get monthly views (current month)
         $currentMonth = date('Y-m');
         $result = $conn->query("SELECT SUM(views) as monthly FROM editions WHERE DATE_FORMAT(created_at, '%Y-%m') = '$currentMonth'");
         if ($result) {
-            $stats['monthly_views'] = $result->fetch_assoc()['monthly'] ?? 0;
+            $stats['monthly_views'] = $result->fetch()['monthly'] ?? 0;
         }
         
         // Calculate storage used
@@ -242,9 +270,9 @@ function formatBytes($bytes, $precision = 2) {
 $recentEditions = [];
 try {
     if (isset($conn)) {
-        $result = $conn->query("SELECT id, title, date, created_at FROM editions ORDER BY created_at DESC LIMIT 5");
+        $result = $conn->query("SELECT id, title, description, date, thumbnail_path, views, status, created_at FROM editions ORDER BY created_at DESC LIMIT 5");
         if ($result) {
-            while ($row = $result->fetch_assoc()) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $recentEditions[] = $row;
             }
         }
@@ -256,6 +284,24 @@ try {
 // Include the admin layout
 require_once 'includes/admin_layout.php';
 ?>
+
+<!-- Welcome Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">
+            <h4 class="alert-heading">
+                <i class="fas fa-tachometer-alt"></i>
+                Welcome to E-Paper CMS Dashboard
+            </h4>
+            <p>This is your administrative dashboard where you can manage your digital newspaper content, upload new editions, organize categories, and monitor system performance.</p>
+            <hr>
+            <p class="mb-0">
+                <strong>Quick Start:</strong> Begin by <a href="upload.php" class="alert-link">uploading your first edition</a> or 
+                <a href="categories.php" class="alert-link">creating content categories</a>.
+            </p>
+        </div>
+    </div>
+</div>
 
 <!-- Dashboard Content -->
 <div class="row mb-4">
@@ -378,20 +424,31 @@ require_once 'includes/admin_layout.php';
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img src="../<?php echo $edition['thumbnail_path']; ?>" 
-                                                 alt="Thumbnail" class="rounded me-2" 
-                                                 style="width: 40px; height: 40px; object-fit: cover;">
+                                            <?php if (!empty($edition['thumbnail_path']) && file_exists("../" . $edition['thumbnail_path'])): ?>
+                                                <img src="../<?php echo htmlspecialchars($edition['thumbnail_path'], ENT_QUOTES, 'UTF-8'); ?>" 
+                                                     alt="Thumbnail" class="rounded me-2" 
+                                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                            <?php else: ?>
+                                                <div class="rounded me-2 bg-light d-flex align-items-center justify-content-center" 
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-newspaper text-muted"></i>
+                                                </div>
+                                            <?php endif; ?>
                                             <div>
-                                                <strong><?php echo htmlspecialchars($edition['title']); ?></strong>
+                                                <strong><?php echo htmlspecialchars($edition['title'] ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>
                                                 <br>
-                                                <small class="text-muted"><?php echo htmlspecialchars($edition['description']); ?></small>
+                                                <small class="text-muted"><?php echo htmlspecialchars($edition['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td><?php echo date('M j, Y', strtotime($edition['created_at'])); ?></td>
-                                    <td><?php echo number_format($edition['views']); ?></td>
+                                    <td><?php echo isset($edition['created_at']) ? date('M j, Y', strtotime($edition['created_at'])) : 'N/A'; ?></td>
+                                    <td><?php echo number_format($edition['views'] ?? 0); ?></td>
                                     <td>
-                                        <span class="badge bg-success">Published</span>
+                                        <?php 
+                                        $status = $edition['status'] ?? 'draft';
+                                        $badgeClass = $status === 'published' ? 'bg-success' : ($status === 'draft' ? 'bg-warning' : 'bg-secondary');
+                                        ?>
+                                        <span class="badge <?php echo $badgeClass; ?>"><?php echo ucfirst($status); ?></span>
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -469,6 +526,162 @@ require_once 'includes/admin_layout.php';
                         <i class="fas fa-stethoscope"></i> Run Diagnostics
                     </a>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Tools Grid -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="admin-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tools"></i>
+                    Administrative Tools
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Content Management -->
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="tool-card h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-newspaper fa-3x text-primary"></i>
+                                </div>
+                                <h5 class="card-title">Content Management</h5>
+                                <p class="card-text text-muted">Upload, manage, and organize your newspaper editions</p>
+                                <div class="d-grid gap-2">
+                                    <a href="upload.php" class="btn btn-primary">
+                                        <i class="fas fa-upload"></i> Upload Edition
+                                    </a>
+                                    <a href="manage_editions.php" class="btn btn-outline-primary">
+                                        <i class="fas fa-list"></i> Manage Editions
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Organization -->
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="tool-card h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-tags fa-3x text-success"></i>
+                                </div>
+                                <h5 class="card-title">Organization</h5>
+                                <p class="card-text text-muted">Create and manage categories to organize your content</p>
+                                <div class="d-grid gap-2">
+                                    <a href="categories.php" class="btn btn-success">
+                                        <i class="fas fa-tags"></i> Manage Categories
+                                    </a>
+                                    <a href="clips.php" class="btn btn-outline-success">
+                                        <i class="fas fa-cut"></i> View Clips
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System & Settings -->
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="tool-card h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-cogs fa-3x text-warning"></i>
+                                </div>
+                                <h5 class="card-title">System & Settings</h5>
+                                <p class="card-text text-muted">Configure system settings and run diagnostics</p>
+                                <div class="d-grid gap-2">
+                                    <a href="settings.php" class="btn btn-warning">
+                                        <i class="fas fa-cog"></i> System Settings
+                                    </a>
+                                    <a href="page_settings.php" class="btn btn-outline-warning">
+                                        <i class="fas fa-edit"></i> Page Settings
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Tools -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="admin-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-wrench"></i>
+                    System Tools & Utilities
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="setup-database.php" class="btn btn-outline-info">
+                                <i class="fas fa-database"></i>
+                                <br>
+                                <small>Database Setup</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="test-database.php" class="btn btn-outline-info">
+                                <i class="fas fa-vial"></i>
+                                <br>
+                                <small>Database Test</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="diagnostics.php" class="btn btn-outline-secondary">
+                                <i class="fas fa-stethoscope"></i>
+                                <br>
+                                <small>System Diagnostics</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="../" class="btn btn-outline-primary" target="_blank">
+                                <i class="fas fa-external-link-alt"></i>
+                                <br>
+                                <small>View Website</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Information Footer -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body text-center py-2">
+                <h6 class="card-title mb-1">
+                    <i class="fas fa-server text-muted"></i>
+                    System Information
+                </h6>
+                <small class="text-muted">
+                    <?php
+                    echo "PHP Version: " . phpversion() . " | ";
+                    echo "Server: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Unknown') . " | ";
+                    echo "Database: MySQL " . ($conn ? "Connected" : "Disconnected") . " | ";
+                    echo "Last Updated: " . date('Y-m-d H:i:s');
+                    ?>
+                </small>
             </div>
         </div>
     </div>

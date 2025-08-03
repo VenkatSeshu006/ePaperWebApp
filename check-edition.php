@@ -9,7 +9,7 @@ echo "Checking for edition entry for $today...\n";
 $result = $conn->query("SELECT * FROM editions WHERE date = '$today'");
 
 if ($result && $result->num_rows > 0) {
-    $edition = $result->fetch_assoc();
+    $edition = $result->fetch();
     echo "✓ Found existing edition: " . $edition['title'] . "\n";
     echo "  ID: " . $edition['id'] . "\n";
     echo "  Status: " . $edition['status'] . "\n";

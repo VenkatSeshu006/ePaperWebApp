@@ -95,7 +95,7 @@ require_once 'includes/admin_layout.php';
                             <div class="mb-3">
                                 <label for="site_title" class="form-label">Site Title</label>
                                 <input type="text" class="form-control" id="site_title" name="site_title" 
-                                       value="<?php echo htmlspecialchars($currentSettings['site_title']); ?>" required>
+                                       value="<?php echo htmlspecialchars(($currentSettings['site_title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" required>
                                 <div class="form-text">This appears in the browser title and header</div>
                             </div>
                         </div>
@@ -103,10 +103,10 @@ require_once 'includes/admin_layout.php';
                             <div class="mb-3">
                                 <label for="items_per_page" class="form-label">Items Per Page</label>
                                 <select class="form-select" id="items_per_page" name="items_per_page">
-                                    <option value="6" <?php echo $currentSettings['items_per_page'] == 6 ? 'selected' : ''; ?>>6</option>
-                                    <option value="12" <?php echo $currentSettings['items_per_page'] == 12 ? 'selected' : ''; ?>>12</option>
-                                    <option value="24" <?php echo $currentSettings['items_per_page'] == 24 ? 'selected' : ''; ?>>24</option>
-                                    <option value="48" <?php echo $currentSettings['items_per_page'] == 48 ? 'selected' : ''; ?>>48</option>
+                                    <option value="6" <?php echo ($currentSettings['items_per_page'] ?? '') == 6 ? 'selected' : ''; ?>>6</option>
+                                    <option value="12" <?php echo ($currentSettings['items_per_page'] ?? '') == 12 ? 'selected' : ''; ?>>12</option>
+                                    <option value="24" <?php echo ($currentSettings['items_per_page'] ?? '') == 24 ? 'selected' : ''; ?>>24</option>
+                                    <option value="48" <?php echo ($currentSettings['items_per_page'] ?? '') == 48 ? 'selected' : ''; ?>>48</option>
                                 </select>
                             </div>
                         </div>
@@ -114,7 +114,7 @@ require_once 'includes/admin_layout.php';
                     
                     <div class="mb-3">
                         <label for="site_description" class="form-label">Site Description</label>
-                        <textarea class="form-control" id="site_description" name="site_description" rows="3"><?php echo htmlspecialchars($currentSettings['site_description']); ?></textarea>
+                        <textarea class="form-control" id="site_description" name="site_description" rows="3"><?php echo htmlspecialchars(($currentSettings['site_description'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                         <div class="form-text">Brief description for SEO and social sharing</div>
                     </div>
                 </div>
@@ -134,7 +134,7 @@ require_once 'includes/admin_layout.php';
                             <div class="mb-3">
                                 <label for="max_file_size" class="form-label">Maximum File Size (MB)</label>
                                 <input type="number" class="form-control" id="max_file_size" name="max_file_size" 
-                                       value="<?php echo $currentSettings['max_file_size']; ?>" min="1" max="500">
+                                       value="<?php echo ($currentSettings['max_file_size'] ?? ''); ?>" min="1" max="500">
                                 <div class="form-text">Maximum size for uploaded PDF files</div>
                             </div>
                         </div>
@@ -143,7 +143,7 @@ require_once 'includes/admin_layout.php';
                                 <label class="form-label">Processing Options</label>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="auto_generate_thumbnails" 
-                                           name="auto_generate_thumbnails" <?php echo $currentSettings['auto_generate_thumbnails'] ? 'checked' : ''; ?>>
+                                           name="auto_generate_thumbnails" <?php echo ($currentSettings['auto_generate_thumbnails'] ?? '') ? 'checked' : ''; ?>>
                                     <label class="form-check-label" for="auto_generate_thumbnails">
                                         Auto-generate thumbnails
                                     </label>
@@ -167,7 +167,7 @@ require_once 'includes/admin_layout.php';
                         <div class="col-md-6">
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="enable_analytics" 
-                                       name="enable_analytics" <?php echo $currentSettings['enable_analytics'] ? 'checked' : ''; ?>>
+                                       name="enable_analytics" <?php echo ($currentSettings['enable_analytics'] ?? '') ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="enable_analytics">
                                     <strong>Enable Analytics</strong>
                                     <div class="form-text">Track page views and user statistics</div>
@@ -177,7 +177,7 @@ require_once 'includes/admin_layout.php';
                         <div class="col-md-6">
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="maintenance_mode" 
-                                       name="maintenance_mode" <?php echo $currentSettings['maintenance_mode'] ? 'checked' : ''; ?>>
+                                       name="maintenance_mode" <?php echo ($currentSettings['maintenance_mode'] ?? '') ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="maintenance_mode">
                                     <strong>Maintenance Mode</strong>
                                     <div class="form-text">Temporarily disable public access</div>
@@ -228,7 +228,7 @@ require_once 'includes/admin_layout.php';
                                 $db = Database::getInstance();
                                 $conn = $db->getConnection();
                                 if ($conn) {
-                                    echo $conn->server_info;
+                                    echo $conn->getAttribute(PDO::ATTR_SERVER_VERSION);
                                 } else {
                                     echo 'Not connected';
                                 }

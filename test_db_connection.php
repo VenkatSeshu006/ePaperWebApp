@@ -8,12 +8,15 @@ try {
     $conn = getConnection();
     if ($conn) {
         echo "<p style='color: green;'>✓ Database connection successful!</p>\n";
-        echo "<p>Database: " . $conn->server_info . "</p>\n";
+        
+        // Get server version using PDO
+        $serverVersion = $conn->getAttribute(PDO::ATTR_SERVER_VERSION);
+        echo "<p>Database: MySQL " . $serverVersion . "</p>\n";
         
         // Check if database exists
         $result = $conn->query("SELECT DATABASE() as current_db");
         if ($result) {
-            $row = $result->fetch_assoc();
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             echo "<p>Current database: " . $row['current_db'] . "</p>\n";
         }
         
@@ -22,7 +25,7 @@ try {
         $result = $conn->query("SHOW TABLES");
         if ($result) {
             $tables = [];
-            while ($row = $result->fetch_row()) {
+            while ($row = $result->fetch(PDO::FETCH_NUM)) {
                 $tables[] = $row[0];
             }
             if (empty($tables)) {
@@ -41,14 +44,14 @@ try {
         echo "<h3>Required Tables Check:</h3>\n";
         foreach ($required_tables as $table) {
             $result = $conn->query("SHOW TABLES LIKE '$table'");
-            if ($result && $result->num_rows > 0) {
+            if ($result && $result->rowCount() > 0) {
                 echo "<p style='color: green;'>✓ Table '$table' exists</p>\n";
                 
                 // Show table structure
                 $desc_result = $conn->query("DESCRIBE $table");
                 if ($desc_result) {
                     echo "<details><summary>Show structure</summary><pre>\n";
-                    while ($col = $desc_result->fetch_assoc()) {
+                    while ($col = $desc_result->fetch(PDO::FETCH_ASSOC)) {
                         echo $col['Field'] . " | " . $col['Type'] . " | " . $col['Null'] . " | " . $col['Key'] . "\n";
                     }
                     echo "</pre></details>\n";

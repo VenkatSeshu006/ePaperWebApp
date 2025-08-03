@@ -129,7 +129,7 @@ try {
                                ORDER BY c.name");
         
         if ($result) {
-            while ($row = $result->fetch_assoc()) {
+            while ($row = $result->fetch()) {
                 $categories[] = $row;
             }
         }

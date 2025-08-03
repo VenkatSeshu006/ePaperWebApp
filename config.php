@@ -36,7 +36,7 @@ define('PAGE_DPI', 150);
 define('IMAGE_QUALITY', 85);
 
 // PDF Processing Configuration
-define('GHOSTSCRIPT_COMMAND', 'gs');
+define('GHOSTSCRIPT_COMMAND', 'C:\Program Files\gs\gs10.05.1\bin\gswin64c.exe');
 define('PDF_TIMEOUT', 300); // 5 minutes
 
 // Security Configuration

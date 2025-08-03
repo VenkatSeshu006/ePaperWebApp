@@ -38,7 +38,7 @@ if ($stmt->execute()) {
 // Verify the changes
 $result = $conn->query("SELECT id, title, date FROM editions WHERE id = 1");
 if ($result && $result->num_rows > 0) {
-    $edition = $result->fetch_assoc();
+    $edition = $result->fetch();
     echo "<p>✅ Edition verification:</p>";
     echo "<ul>";
     echo "<li>ID: {$edition['id']}</li>";
@@ -50,7 +50,7 @@ if ($result && $result->num_rows > 0) {
 // Check page paths
 $result = $conn->query("SELECT COUNT(*) as count, MIN(image_path) as sample_path FROM pages WHERE edition_id = 1");
 if ($result && $result->num_rows > 0) {
-    $pages = $result->fetch_assoc();
+    $pages = $result->fetch();
     echo "<p>✅ Pages verification:</p>";
     echo "<ul>";
     echo "<li>Total pages: {$pages['count']}</li>";

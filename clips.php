@@ -28,10 +28,9 @@ if (!$conn) {
 // Handle delete action
 if ($action === 'delete' && $clipId) {
     $stmt = $conn->prepare("SELECT image_path FROM clips WHERE id = ?");
-    $stmt->bind_param("i", $clipId);
-    $stmt->execute();
+    $stmt->execute([$clipId]);
     $result = $stmt->get_result();
-    $clip = $result->fetch_assoc();
+    $clip = $result->fetch();
     
     if ($clip) {
         // Delete file if it exists
@@ -41,8 +40,7 @@ if ($action === 'delete' && $clipId) {
         
         // Delete from database
         $stmt = $conn->prepare("DELETE FROM clips WHERE id = ?");
-        $stmt->bind_param("i", $clipId);
-        $stmt->execute();
+        $stmt->execute([$clipId]);
         
         header("Location: clips.php?deleted=1");
         exit;
@@ -57,10 +55,9 @@ if ($clipId && $action === 'view') {
         LEFT JOIN editions e ON c.edition_id = e.id 
         WHERE c.id = ?
     ");
-    $stmt->bind_param("i", $clipId);
-    $stmt->execute();
+    $stmt->execute([$clipId]);
     $result = $stmt->get_result();
-    $clip = $result->fetch_assoc();
+    $clip = $result->fetch();
     
     if (!$clip) {
         header("HTTP/1.0 404 Not Found");
@@ -97,9 +94,9 @@ if ($clipId && $action === 'view') {
         $countStmt = $conn->prepare($countSql);
         $countStmt->bind_param($types, ...$params);
         $countStmt->execute();
-        $totalClips = $countStmt->get_result()->fetch_assoc()['total'];
+        $totalClips = $countStmt->get_result()->fetch()['total'];
     } else {
-        $totalClips = $conn->query($countSql)->fetch_assoc()['total'];
+        $totalClips = $conn->query($countSql)->fetch()['total'];
     }
     
     $totalPages = ceil($totalClips / $limit);
@@ -123,7 +120,7 @@ if ($clipId && $action === 'view') {
     $result = $stmt->get_result();
     
     $clips = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetch()) {
         $clips[] = $row;
     }
 }
