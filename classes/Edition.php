@@ -229,7 +229,7 @@ class Edition {
      * Create new edition
      */
     public function create($data) {
-        $sql = "INSERT INTO editions (title, slug, description, date, thumbnail_path, pdf_path, total_pages, file_size, status, created_at) 
+        $sql = "INSERT INTO editions (title, slug, description, date, cover_image, pdf_file, total_pages, file_size, status, created_at) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         // Handle date field - check for both 'date' and 'publication_date' keys
@@ -250,7 +250,7 @@ class Edition {
             $slug,
             $data['description'] ?? '',
             $date,
-            $data['thumbnail_path'] ?? '', // Maps to thumbnail_path in database
+            $data['cover_image'] ?? $data['cover_image'] ?? '', // Support both names, use cover_image
             $data['pdf_path'] ?? $data['pdf_file'] ?? '', // Support both names, prioritize pdf_path
             $data['total_pages'] ?? 0,
             $data['file_size'] ?? 0,

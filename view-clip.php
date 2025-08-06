@@ -341,10 +341,15 @@ try {
             }, 3000);
         }
 
-        // Download clip
+        // Download clip with watermark
         function downloadClip() {
+            showNotification('Preparing download...', 'info');
+            
+            // Use the watermarked download API
+            const downloadUrl = `api/download-clip.php?id=${clipData.id}&download=1`;
+            
             const link = document.createElement('a');
-            link.href = clipData.imageUrl;
+            link.href = downloadUrl;
             link.download = `${clipData.title}_clip_${clipData.id}.jpg`;
             document.body.appendChild(link);
             link.click();

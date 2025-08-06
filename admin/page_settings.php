@@ -199,6 +199,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($_POST as $key => $value) {
                     if ($key === 'action') continue;
                     
+                    // Skip array fields that are handled separately
+                    if (is_array($value) && !in_array($key, ['footer_links'])) {
+                        continue;
+                    }
+                    
                     // Handle footer_links specially as JSON
                     if ($key === 'footer_links') {
                         $links = [];
@@ -213,6 +218,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                         $value = json_encode($links);
+                    }
+                    
+                    // Ensure value is a string
+                    if (is_array($value)) {
+                        $value = json_encode($value);
                     }
                     
                     // Get setting type

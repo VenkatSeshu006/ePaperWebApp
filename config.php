@@ -17,10 +17,11 @@ define('APP_RELEASE_DATE', '2025-07-29');
 
 // Database Configuration (Override in includes/database.php if needed)
 if (!defined('DB_HOST')) {
-    define('DB_HOST', 'localhost');
-    define('DB_NAME', 'epaper_cms');
-    define('DB_USER', 'root');
-    define('DB_PASS', '');
+    // Use environment-based configuration
+    define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
+    define('DB_NAME', $_ENV['DB_NAME'] ?? 'epaper_cms');
+    define('DB_USER', $_ENV['DB_USER'] ?? 'root');
+    define('DB_PASS', $_ENV['DB_PASS'] ?? '');
     define('DB_CHARSET', 'utf8mb4');
 }
 
@@ -36,7 +37,23 @@ define('PAGE_DPI', 150);
 define('IMAGE_QUALITY', 85);
 
 // PDF Processing Configuration
-define('GHOSTSCRIPT_COMMAND', 'C:\Program Files\gs\gs10.05.1\bin\gswin64c.exe');
+// Cross-platform Ghostscript detection
+$ghostscriptPaths = [
+    '/usr/bin/gs',              // Linux/Unix standard
+    '/usr/local/bin/gs',        // Linux/Unix alternative
+    'C:\Program Files\gs\gs10.05.1\bin\gswin64c.exe', // Windows XAMPP
+    'gs'                        // System PATH
+];
+
+$gsCommand = 'gs'; // Default fallback
+foreach ($ghostscriptPaths as $path) {
+    if (is_executable($path) || (PHP_OS_FAMILY === 'Windows' && file_exists($path))) {
+        $gsCommand = $path;
+        break;
+    }
+}
+
+define('GHOSTSCRIPT_COMMAND', $gsCommand);
 define('PDF_TIMEOUT', 300); // 5 minutes
 
 // Security Configuration

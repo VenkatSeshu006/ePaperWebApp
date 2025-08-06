@@ -8,7 +8,7 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
 try {
-    require_once '../includes/db.php';
+    require_once 'includes/database.php';
     $conn = getConnection();
     
     if (!$conn) {

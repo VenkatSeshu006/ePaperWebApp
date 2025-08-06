@@ -62,8 +62,15 @@ class Database {
     public function query($sql, $params = []) {
         try {
             $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            return $stmt;
+            $result = $stmt->execute($params);
+            
+            // For SELECT queries, return the statement for fetching
+            if (stripos(trim($sql), 'SELECT') === 0) {
+                return $stmt;
+            }
+            
+            // For INSERT, UPDATE, DELETE queries, return success boolean
+            return $result;
         } catch (Exception $e) {
             error_log("Database query error: " . $e->getMessage() . " SQL: " . $sql);
             throw $e;

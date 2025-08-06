@@ -33,6 +33,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link <?= $currentPage == 'watermark_settings.php' ? 'active' : '' ?>" href="watermark_settings.php">
+                        <i class="fas fa-image me-1"></i>Watermark
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?= $currentPage == 'analytics.php' ? 'active' : '' ?>" href="analytics.php">
                         <i class="fas fa-chart-line me-1"></i>Analytics
                     </a>

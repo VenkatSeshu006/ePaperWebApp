@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    require_once '../includes/db.php';
+    require_once '../includes/database.php';
     $conn = getConnection();
     
     if (!$conn) {

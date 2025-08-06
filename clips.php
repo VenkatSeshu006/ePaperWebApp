@@ -4,7 +4,7 @@
  * Enhanced clip viewer and management
  */
 
-require_once 'includes/db.php';
+require_once 'includes/database.php';
 
 // Helper function to format file sizes
 function formatBytes($bytes, $precision = 2) {

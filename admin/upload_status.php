@@ -80,7 +80,7 @@ require_once '../config.php';
         }
         
         // Check upload directory
-        $uploadDir = '../uploads/';
+        $uploadDir = '.uploads/';
         if (is_dir($uploadDir) && is_writable($uploadDir)) {
             echo '<div class="status-item status-ok"><span class="icon">✅</span>Upload directory is writable</div>';
         } else {

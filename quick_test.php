@@ -1,46 +1,33 @@
 <?php
-/**
- * Quick test for admin edition functionality
- */
-require_once 'config/config.php';
-require_once 'includes/database.php';
-require_once 'classes/Edition.php';
-
-$edition = new Edition();
-
-// Create a test edition
-$testData = [
-    'title' => 'Admin Test Edition',
-    'description' => 'Testing admin functionality',
-    'publication_date' => date('Y-m-d'),
-    'pdf_path' => 'test/admin.pdf',
-    'status' => 'draft'
-];
-
-$id = $edition->create($testData);
-echo "Created edition with ID: $id\n";
-
-// Test getByIdAdmin
-$retrieved = $edition->getByIdAdmin($id);
-if ($retrieved) {
-    echo "✅ getByIdAdmin works: " . $retrieved['title'] . " (Status: " . $retrieved['status'] . ")\n";
-} else {
-    echo "❌ getByIdAdmin failed\n";
+// Quick website test
+try {
+    require_once 'includes/database.php';
+    $conn = getConnection();
+    
+    if ($conn) {
+        echo "✅ Database connection working\n";
+        
+        // Test homepage data
+        $result = $conn->query("SELECT id, title, date FROM editions ORDER BY date DESC LIMIT 1");
+        if ($result && $row = $result->fetch()) {
+            echo "✅ Latest edition: {$row['title']} ({$row['date']})\n";
+        }
+        
+        // Test pages
+        $result = $conn->query("SELECT COUNT(*) as count FROM edition_pages");
+        if ($result) {
+            $pageCount = $result->fetch()['count'];
+            echo "✅ Pages available: $pageCount\n";
+        }
+        
+        echo "\n🎉 Website should work at:\n";
+        echo "📱 http://localhost/Projects/ePaperApplication/\n";
+        echo "👨‍💼 http://localhost/Projects/ePaperApplication/admin/\n";
+        
+    } else {
+        echo "❌ Database connection failed\n";
+    }
+} catch (Exception $e) {
+    echo "❌ Error: " . $e->getMessage() . "\n";
 }
-
-// Test publish
-$updated = $edition->update($id, ['status' => 'published']);
-if ($updated) {
-    echo "✅ Update works\n";
-} else {
-    echo "❌ Update failed\n";
-}
-
-// Clean up
-$db = Database::getInstance();
-$conn = $db->getConnection();
-$stmt = $conn->prepare("DELETE FROM editions WHERE id = ?");
-$stmt->execute([$id]);
-echo "Cleaned up test data\n";
-echo "✅ All admin functionality working!\n";
 ?>

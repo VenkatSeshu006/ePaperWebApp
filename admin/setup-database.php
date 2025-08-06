@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['setup_database'])) {
                 description TEXT,
                 publication_date DATE,
                 pdf_path VARCHAR(500),
-                thumbnail_path VARCHAR(500),
+                cover_image VARCHAR(500),
                 views INT DEFAULT 0,
                 status ENUM('draft', 'published', 'archived') DEFAULT 'published',
                 category VARCHAR(100) DEFAULT 'general',

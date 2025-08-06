@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/db.php';
+require_once 'includes/database.php';
 
 // Initialize classes
 $categoryModel = new Category();
@@ -186,8 +186,8 @@ $pageTitle = 'Browse by Categories';
                     <?php foreach ($recentEditions as $edition): ?>
                         <div class="col-lg-4 col-md-6 mb-4">
                             <div class="card">
-                                <?php if (!empty($edition['thumbnail_path'])): ?>
-                                    <img src="<?= htmlspecialchars($edition['thumbnail_path']) ?>" 
+                                <?php if (!empty($edition['cover_image'])): ?>
+                                    <img src="<?= htmlspecialchars($edition['cover_image']) ?>" 
                                          class="card-img-top" 
                                          alt="<?= htmlspecialchars($edition['title']) ?>"
                                          style="height: 200px; object-fit: cover;">

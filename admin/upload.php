@@ -12,14 +12,14 @@ require_once '../config.php';
 
 // Simple authentication check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: dashboard.php');
+    header('Location: ./dashboard.php');
     exit;
 }
 
 // Handle logout
 if (isset($_GET['logout'])) {
     session_destroy();
-    header('Location: dashboard.php');
+    header('Location: ./dashboard.php');
     exit;
 }
 
@@ -42,13 +42,7 @@ $messageType = '';
 // Handle file upload
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
     try {
-        $db = Database::getInstance();
-        $conn = $db->getConnection();
-        
-        if (!$conn) {
-            throw new Exception('Database connection failed');
-        }
-        
+        // No need to get separate connection - Edition class handles its own
         $edition = new Edition();
         
         $title = $_POST['title'] ?? '';
@@ -72,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
         }
         
         // Create upload directory
-        $uploadDir = '../uploads/' . date('Y-m-d') . '/';
+        $uploadDir = '.uploads/' . date('Y-m-d') . '/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
@@ -112,10 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
             $result = $edition->create([
                 'title' => $title,
                 'description' => $description,
-                'category' => $category,
                 'publication_date' => $publication_date,
                 'pdf_path' => str_replace('../', '', $filepath), // Use pdf_path to match database
-                'thumbnail_path' => file_exists($thumbnailPath) ? str_replace('../', '', $thumbnailPath) : '',
+                'cover_image' => file_exists($thumbnailPath) ? str_replace('../', '', $thumbnailPath) : '',
                 'status' => $status,
                 'file_size' => $fileSize,
                 'total_pages' => $totalPages
@@ -124,14 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
             if ($result) {
                 // Automatically process PDF to images with enhanced quality
                 try {
-                    require_once '../enhanced_quality_processor.php';
-                    $processor = new EnhancedQualityPDFProcessor();
-                    $pages = $processor->processWithBestQuality($filepath, $result);
+                    require_once '../pdf_processor.php';
+                    $processor = new ComprehensivePDFProcessor();
+                    $pages = $processor->processEdition($filepath, $result);
                     
-                    // Run comprehensive post-processing to ensure homepage compatibility
-                    require_once '../edition_post_processor.php';
-                    $postProcessor = new EditionPostProcessor();
-                    $postResults = $postProcessor->processNewEdition($result);
+                    // Enhanced processing includes validation and optimization
+                    echo "✅ PDF processed successfully: " . count($pages) . " pages generated\n";
                     
                     $statusText = $status === 'draft' ? 'uploaded as draft' : 'uploaded and published';
                     $message = "Edition $statusText successfully!";
@@ -140,14 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['pdf_file'])) {
                         $message .= " (" . count($pages) . " high-quality pages converted)";
                     } elseif ($totalPages > 0) {
                         $message .= " ($totalPages pages detected)";
-                    }
-                    
-                    // Add post-processing results
-                    if ($postResults['homepage_ready']) {
-                        $message .= " [✅ Homepage ready]";
-                    }
-                    if (!empty($postResults['message'])) {
-                        $message .= " " . $postResults['message'];
                     }
                     
                     $messageType = 'success';

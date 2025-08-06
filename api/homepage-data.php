@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 try {
     // Use simple database connection
-    require_once '../includes/db.php';
+    require_once '../includes/database.php';
     $conn = getConnection();
     
     if (!$conn) {
@@ -29,9 +29,9 @@ try {
             e.*,
             COUNT(p.id) as page_count,
             MIN(p.image_path) as first_page_path,
-            p.thumbnail_path as thumbnail_path
+            p.image_path as cover_image
         FROM editions e 
-        LEFT JOIN pages p ON e.id = p.edition_id 
+        LEFT JOIN edition_pages p ON e.id = p.edition_id 
         WHERE e.status = 'published' 
         GROUP BY e.id 
         ORDER BY e.date DESC, e.id DESC 
@@ -58,7 +58,7 @@ try {
             'total_pages' => (int)($row['total_pages'] ?: $row['page_count']),
             'views' => (int)$row['views'],
             'downloads' => (int)$row['downloads'],
-            'thumbnail' => $row['thumbnail_path'] ?: $row['first_page_path'],
+            'thumbnail' => $row['cover_image'] ?: $row['first_page_path'] ?: $row['cover_image'],
             'pdf_path' => $row['pdf_path'],
             'file_size' => (int)$row['file_size'],
             'created_at' => $row['created_at'],
@@ -67,22 +67,22 @@ try {
         
         // Get pages for this edition
         $pages_sql = "
-            SELECT page_number, image_path, thumbnail_path, width, height 
-            FROM pages 
+            SELECT page_number, image_path, image_path as cover_image, width, height 
+            FROM edition_pages 
             WHERE edition_id = ? 
             ORDER BY page_number ASC
         ";
         
         $pages_stmt = $conn->prepare($pages_sql);
-        $stmt->execute([$row['id']]);
-        $pages_result = $pages_stmt->get_result();
+        $pages_stmt->execute([$row['id']]);
+        $pages_result = $pages_stmt->fetchAll();
         
         $pages = [];
-        while ($page = $pages_result->fetch()) {
+        foreach ($pages_result as $page) {
             $pages[] = [
                 'page_number' => (int)$page['page_number'],
                 'image_path' => $page['image_path'],
-                'thumbnail_path' => $page['thumbnail_path'],
+                'cover_image' => $page['cover_image'],
                 'width' => (int)$page['width'],
                 'height' => (int)$page['height']
             ];

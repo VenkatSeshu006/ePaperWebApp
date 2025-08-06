@@ -115,10 +115,10 @@ class PDFProcessingWidget {
                 </div>
                 
                 <div style="margin-top: 15px; text-align: center;">
-                    <a href="../auto_pdf_processor.php" class="btn" style="background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 12px;">
-                        <i class="fas fa-play"></i> Process Now
+                    <a href="../pdf_processor.php" class="btn" style="background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 12px;">
+                        <i class="fas fa-play"></i> Process PDFs
                     </a>
-                    <a href="../system_integrity_check.php" class="btn" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 12px; margin-left: 5px;">
+                    <a href="../system_validator.php" class="btn" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 12px; margin-left: 5px;">
                         <i class="fas fa-check-circle"></i> System Check
                     </a>
                 </div>

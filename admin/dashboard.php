@@ -22,14 +22,33 @@ if (!$isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    // Simple hardcoded authentication (you should use proper authentication)
-    if ($username === 'admin' && $password === 'admin123') {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_user'] = $username;
-        header('Location: ' . $_SERVER['PHP_SELF']);
-        exit;
-    } else {
-        $loginError = 'Invalid credentials';
+    // Database authentication
+    try {
+        $conn = getConnection();
+        $stmt = $conn->prepare("SELECT id, username, full_name, password_hash, role FROM admin_users WHERE username = ? AND role IN ('admin', 'editor')");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+        
+        if ($user && password_verify($password, $user['password_hash'])) {
+            // Valid credentials - create session
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_user'] = $user['username'];
+            $_SESSION['admin_user_id'] = $user['id'];
+            $_SESSION['admin_full_name'] = $user['full_name'];
+            $_SESSION['admin_role'] = $user['role'];
+            
+            // Update last login time
+            $updateStmt = $conn->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
+            $updateStmt->execute([$user['id']]);
+            
+            header('Location: ' . $_SERVER['PHP_SELF']);
+            exit;
+        } else {
+            $loginError = 'Invalid username or password';
+        }
+    } catch (Exception $e) {
+        $loginError = 'Login system error. Please try again.';
+        error_log("Login error: " . $e->getMessage());
     }
 }
 
@@ -204,7 +223,8 @@ $stats = [
     'total_editions' => 0,
     'total_views' => 0,
     'monthly_views' => 0,
-    'storage_used' => 0
+    'storage_used' => 0,
+    'watermark_enabled' => false
 ];
 
 try {
@@ -229,6 +249,13 @@ try {
         $result = $conn->query("SELECT SUM(views) as monthly FROM editions WHERE DATE_FORMAT(created_at, '%Y-%m') = '$currentMonth'");
         if ($result) {
             $stats['monthly_views'] = $result->fetch()['monthly'] ?? 0;
+        }
+        
+        // Check watermark status
+        $result = $conn->query("SELECT setting_value FROM settings WHERE setting_key = 'watermark_enabled'");
+        if ($result) {
+            $watermarkSetting = $result->fetch();
+            $stats['watermark_enabled'] = ($watermarkSetting && $watermarkSetting['setting_value'] === '1');
         }
         
         // Calculate storage used
@@ -270,7 +297,7 @@ function formatBytes($bytes, $precision = 2) {
 $recentEditions = [];
 try {
     if (isset($conn)) {
-        $result = $conn->query("SELECT id, title, description, date, thumbnail_path, views, status, created_at FROM editions ORDER BY created_at DESC LIMIT 5");
+        $result = $conn->query("SELECT id, title, description, date, cover_image, views, status, created_at FROM editions ORDER BY created_at DESC LIMIT 5");
         if ($result) {
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $recentEditions[] = $row;
@@ -424,8 +451,8 @@ require_once 'includes/admin_layout.php';
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <?php if (!empty($edition['thumbnail_path']) && file_exists("../" . $edition['thumbnail_path'])): ?>
-                                                <img src="../<?php echo htmlspecialchars($edition['thumbnail_path'], ENT_QUOTES, 'UTF-8'); ?>" 
+                                            <?php if (!empty($edition['cover_image']) && file_exists("../" . $edition['cover_image'])): ?>
+                                                <img src="../<?php echo htmlspecialchars($edition['cover_image'], ENT_QUOTES, 'UTF-8'); ?>" 
                                                      alt="Thumbnail" class="rounded me-2" 
                                                      style="width: 40px; height: 40px; object-fit: cover;">
                                             <?php else: ?>
@@ -452,12 +479,12 @@ require_once 'includes/admin_layout.php';
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="../view.php?id=<?php echo $edition['id']; ?>" 
-                                               class="btn btn-sm btn-outline-primary" target="_blank">
+                                            <a href="../view-edition.php?id=<?php echo $edition['id']; ?>" 
+                                               class="btn btn-sm btn-outline-primary" target="_blank" title="View Edition">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="edit.php?id=<?php echo $edition['id']; ?>" 
-                                               class="btn btn-sm btn-outline-secondary">
+                                            <a href="edit_edition.php?id=<?php echo $edition['id']; ?>" 
+                                               class="btn btn-sm btn-outline-secondary" title="Edit Edition">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                         </div>
@@ -559,6 +586,30 @@ require_once 'includes/admin_layout.php';
                                     <a href="manage_editions.php" class="btn btn-outline-primary">
                                         <i class="fas fa-list"></i> Manage Editions
                                     </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Watermark & Branding -->
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="tool-card h-100">
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <i class="fas fa-image fa-3x text-info"></i>
+                                </div>
+                                <h5 class="card-title">Watermark & Branding</h5>
+                                <p class="card-text text-muted">Configure publisher watermark for clip downloads</p>
+                                <div class="d-grid gap-2">
+                                    <a href="watermark_settings.php" class="btn btn-info">
+                                        <i class="fas fa-cog"></i> Watermark Settings
+                                    </a>
+                                    <div class="small mt-2">
+                                        Status: 
+                                        <span class="badge <?php echo $stats['watermark_enabled'] ? 'bg-success' : 'bg-warning'; ?>">
+                                            <?php echo $stats['watermark_enabled'] ? 'Active' : 'Inactive'; ?>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

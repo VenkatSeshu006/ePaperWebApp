@@ -42,7 +42,7 @@ $homepageBackgroundColor = $pageSettings['homepage_background_color'] ?? '#fffff
 $homepageTextColor = $pageSettings['homepage_text_color'] ?? '#333333';
 
 // Get the latest published edition from database
-$sql = "SELECT id, title, date, thumbnail_path FROM editions WHERE status = 'published' ORDER BY date DESC, created_at DESC LIMIT 1";
+$sql = "SELECT id, title, date, cover_image FROM editions WHERE status = 'published' ORDER BY date DESC, created_at DESC LIMIT 1";
 $result = $conn->query($sql);
 $latest = $result ? $result->fetch() : null;
 
@@ -57,7 +57,7 @@ $totalPages = 0;
 
 if ($editionId) {
     // Get edition details (only if published)
-    $stmt = $conn->prepare("SELECT * FROM editions WHERE id = ? AND status = 'published'");
+    $stmt = $conn->prepare("SELECT *, pdf_file as pdf_path FROM editions WHERE id = ? AND status = 'published'");
     $stmt->execute([$editionId]);
     $currentEdition = $stmt->fetch();
     
@@ -140,6 +140,12 @@ $conn = null;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--pure-black);
+        }
+        
+        /* Main Container Width Control */
+        .container-fluid {
+            max-width: 1300px;
+            margin: 0 auto;
         }
         
         .header-bar {
@@ -1616,7 +1622,7 @@ $conn = null;
                 
                 // Enhanced query to get all published editions with more details
                 $archiveResult = $archiveConn->query("
-                    SELECT e.id, e.title, e.date, e.thumbnail_path, e.description, e.created_at,
+                    SELECT e.id, e.title, e.date, e.cover_image, e.description, e.created_at,
                            (SELECT COUNT(*) FROM edition_pages WHERE edition_id = e.id) as page_count,
                            (SELECT image_path FROM edition_pages WHERE edition_id = e.id ORDER BY page_number LIMIT 1) as first_page_path
                     FROM editions e 
@@ -1633,8 +1639,8 @@ $conn = null;
                         <?php 
                         // Try to find the best thumbnail
                         $thumbnailPath = null;
-                        if ($edition['thumbnail_path'] && file_exists($edition['thumbnail_path'])) {
-                            $thumbnailPath = $edition['thumbnail_path'];
+                        if ($edition['cover_image'] && file_exists($edition['cover_image'])) {
+                            $thumbnailPath = $edition['cover_image'];
                         } elseif ($edition['first_page_path'] && file_exists($edition['first_page_path'])) {
                             $thumbnailPath = $edition['first_page_path'];
                         }
@@ -2365,12 +2371,14 @@ $conn = null;
             
             isClippingMode = false;
             document.body.classList.remove('clipping-active');
-            clipOverlay.style.display = 'none';
+            if (clipOverlay) clipOverlay.style.display = 'none';
             
             // Reset button state
-            clipBtn.innerHTML = '<i class="fas fa-cut"></i> Clip';
-            clipBtn.classList.remove('btn-danger');
-            clipBtn.classList.add('btn-info');
+            if (clipBtn) {
+                clipBtn.innerHTML = '<i class="fas fa-cut"></i> Clip';
+                clipBtn.classList.remove('btn-danger');
+                clipBtn.classList.add('btn-info');
+            }
             
             // Destroy cropper
             if (cropper) {
@@ -2380,9 +2388,28 @@ $conn = null;
             
             // Reset clip data
             currentClipData = null;
-            savedClipId = null;
             
             showNotification('Clipping mode deactivated. Click Clip button to start again.', 'info');
+        }
+
+        // Reset clip button to normal state after successful save
+        function resetClipButton() {
+            const clipBtn = document.getElementById('clipModeBtn');
+            if (clipBtn) {
+                clipBtn.innerHTML = '<i class="fas fa-cut"></i> Clip';
+                clipBtn.classList.remove('btn-danger', 'btn-warning');
+                clipBtn.classList.add('btn-info');
+            }
+            
+            // Reset any clip-related UI elements
+            const clipOverlay = document.getElementById('clipOverlay');
+            if (clipOverlay) clipOverlay.style.display = 'none';
+            
+            // Remove clipping mode class
+            document.body.classList.remove('clipping-active');
+            
+            // Clear saved clip ID to prevent confusion
+            savedClipId = null;
         }
 
         // Crop control functions (simplified for streamlined UI)
@@ -2408,60 +2435,87 @@ $conn = null;
                 return;
             }
 
-            // Generate preview and show modal
-            generateClipPreview(cropData);
+            // Generate preview using Cropper.js built-in method
+            generateClipPreviewWithCropper();
             showPreviewModal();
         }
 
-        function generateClipPreview(cropData) {
-            const canvas = document.getElementById('previewCanvas');
-            const ctx = canvas.getContext('2d');
-            const currentPageImage = document.getElementById('currentPageImage');
+        function generateClipPreviewWithCropper() {
+            if (!cropper) {
+                showNotification('Cropper not initialized', 'error');
+                return;
+            }
 
-            // Set canvas dimensions to crop size
-            canvas.width = cropData.width;
-            canvas.height = cropData.height;
-
-            // Create a temporary image to get the original size
-            const tempImg = new Image();
-            tempImg.onload = function() {
-                // Calculate the scale ratio between displayed image and original image
-                const displayedWidth = currentPageImage.clientWidth;
-                const displayedHeight = currentPageImage.clientHeight;
-                const originalWidth = tempImg.width;
-                const originalHeight = tempImg.height;
-                
-                const scaleX = originalWidth / displayedWidth;
-                const scaleY = originalHeight / displayedHeight;
-
-                // Adjust crop coordinates for original image scale
-                const adjustedX = cropData.x * scaleX;
-                const adjustedY = cropData.y * scaleY;
-                const adjustedWidth = cropData.width * scaleX;
-                const adjustedHeight = cropData.height * scaleY;
-
-                // Draw the cropped area
-                ctx.drawImage(
-                    tempImg,
-                    adjustedX, adjustedY, adjustedWidth, adjustedHeight,
-                    0, 0, cropData.width, cropData.height
-                );
-
-                // Store current clip data
-                currentClipData = {
-                    cropData: cropData,
-                    editionId: window.editionData.editionId,
-                    pageNumber: window.editionData.currentPage,
-                    width: Math.round(cropData.width),
-                    height: Math.round(cropData.height),
-                    x: Math.round(cropData.x),
-                    y: Math.round(cropData.y)
-                };
-
-                showNotification('Preview generated successfully!', 'success');
-            };
+            // Get the original image dimensions and crop data
+            const imageData = cropper.getImageData();
+            const cropBoxData = cropper.getCropBoxData();
+            const canvasData = cropper.getCanvasData();
             
-            tempImg.src = currentPageImage.src;
+            // Calculate the actual crop dimensions in original image scale
+            const scaleX = imageData.naturalWidth / canvasData.width;
+            const scaleY = imageData.naturalHeight / canvasData.height;
+            
+            // Calculate maximum quality dimensions (preserve original resolution)
+            const maxWidth = Math.min(imageData.naturalWidth, 2400); // Max 2400px width
+            const maxHeight = Math.min(imageData.naturalHeight, 2400); // Max 2400px height
+            
+            // Use Cropper.js getCroppedCanvas method with high quality settings
+            const croppedCanvas = cropper.getCroppedCanvas({
+                maxWidth: maxWidth,
+                maxHeight: maxHeight,
+                minWidth: 100,
+                minHeight: 100,
+                width: Math.min(cropBoxData.width * scaleX, maxWidth),
+                height: Math.min(cropBoxData.height * scaleY, maxHeight),
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+                fillColor: '#ffffff'
+            });
+
+            if (!croppedCanvas) {
+                showNotification('Failed to generate high-quality crop preview', 'error');
+                return;
+            }
+
+            // Replace the preview canvas with the high-quality cropped one
+            const previewCanvas = document.getElementById('previewCanvas');
+            const previewContainer = previewCanvas.parentNode;
+            
+            // Remove old canvas
+            previewCanvas.remove();
+            
+            // Set ID and classes for the new high-quality canvas
+            croppedCanvas.id = 'previewCanvas';
+            croppedCanvas.className = 'preview-canvas';
+            
+            // Ensure canvas maintains aspect ratio and quality
+            croppedCanvas.style.maxWidth = '100%';
+            croppedCanvas.style.maxHeight = '60vh';
+            croppedCanvas.style.objectFit = 'contain';
+            croppedCanvas.style.imageRendering = 'high-quality';
+            
+            // Insert the new high-quality canvas
+            previewContainer.appendChild(croppedCanvas);
+
+            // Get crop data for storage
+            const cropData = cropper.getData();
+            
+            // Store current clip data with quality information
+            currentClipData = {
+                cropData: cropData,
+                editionId: window.editionData.editionId,
+                pageNumber: window.editionData.currentPage,
+                width: Math.round(cropData.width),
+                height: Math.round(cropData.height),
+                x: Math.round(cropData.x),
+                y: Math.round(cropData.y),
+                originalWidth: imageData.naturalWidth,
+                originalHeight: imageData.naturalHeight,
+                quality: 'high'
+            };
+
+            console.log('High-quality clip data stored:', currentClipData);
+            showNotification('High-quality preview generated successfully!', 'success');
         }
 
         function showPreviewModal() {
@@ -2472,11 +2526,27 @@ $conn = null;
         function closePreview() {
             const modal = document.getElementById('clipPreviewModal');
             modal.style.display = 'none';
+            
+            // Reset the preview canvas to empty state for next use
+            const previewCanvas = document.getElementById('previewCanvas');
+            if (previewCanvas && previewCanvas.tagName === 'CANVAS') {
+                const ctx = previewCanvas.getContext('2d');
+                ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                
+                // Reset canvas size
+                previewCanvas.width = 400;
+                previewCanvas.height = 300;
+            }
         }
 
         function backToClipping() {
             closePreview();
             // Keep clipping mode active for further adjustments
+            if (!isClippingMode && cropper) {
+                // Re-activate clipping mode if it was deactivated
+                isClippingMode = true;
+                document.body.classList.add('clipping-active');
+            }
         }
 
         // Save clip to server
@@ -2487,21 +2557,42 @@ $conn = null;
             }
 
             const canvas = document.getElementById('previewCanvas');
-            const imageData = canvas.toDataURL('image/jpeg', 0.9);
+            if (!canvas) {
+                showNotification('Preview canvas not found', 'error');
+                return;
+            }
 
-            // Prepare data for server
+            // Use maximum quality for saving - PNG for lossless quality
+            const imageData = canvas.toDataURL('image/png');
+            
+            // If PNG is too large, fall back to high-quality JPEG
+            let finalImageData = imageData;
+            if (imageData.length > 5000000) { // If larger than 5MB
+                finalImageData = canvas.toDataURL('image/jpeg', 0.95); // 95% quality JPEG
+            }
+
+            // Prepare data for server with proper structure and quality info
             const clipInfo = {
                 edition_id: currentClipData.editionId,
                 page_number: currentClipData.pageNumber,
-                x: currentClipData.x,
-                y: currentClipData.y,
-                width: currentClipData.width,
-                height: currentClipData.height,
-                image_data: imageData
+                image_data: finalImageData,
+                crop_data: {
+                    x: currentClipData.x,
+                    y: currentClipData.y,
+                    width: currentClipData.width,
+                    height: currentClipData.height
+                },
+                title: 'High-Quality Newspaper Clip',
+                description: `High-quality clip from page ${currentClipData.pageNumber}`,
+                quality: currentClipData.quality || 'high',
+                original_dimensions: {
+                    width: currentClipData.originalWidth,
+                    height: currentClipData.originalHeight
+                }
             };
 
             // Show loading notification
-            showNotification('Saving clip...', 'info');
+            showNotification('Saving high-quality clip...', 'info');
 
             // Send to server
             fetch('api/save-clip.php', {
@@ -2511,19 +2602,41 @@ $conn = null;
                 },
                 body: JSON.stringify(clipInfo)
             })
-            .then(response => response.json())
+            .then(async response => {
+                console.log('Response status:', response.status);
+                
+                // Get the response text first to debug
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+                
+                // Try to parse as JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error('JSON parse error:', jsonError);
+                    console.log('Response text length:', responseText.length);
+                    console.log('First 200 chars:', responseText.substring(0, 200));
+                    throw new Error('Invalid response format from server');
+                }
+                
+                return data;
+            })
             .then(data => {
                 if (data.success) {
                     savedClipId = data.clip_id;
-                    showNotification('Clip saved successfully!', 'success');
+                    showNotification('High-quality clip saved successfully!', 'success');
                     
                     // Exit clipping mode and close preview
                     exitClipMode();
                     closePreview();
                     
+                    // Reset the clip button to normal state
+                    resetClipButton();
+                    
                     // Show success options
                     setTimeout(() => {
-                        if (confirm('Clip saved! Would you like to view it now?')) {
+                        if (confirm('High-quality clip saved! Would you like to view it now?')) {
                             window.open(`view-clip.php?id=${savedClipId}`, '_blank');
                         }
                     }, 1000);
@@ -2539,40 +2652,97 @@ $conn = null;
 
         // Download functions
         function downloadClipImage() {
-            if (!savedClipId && !currentClipData) {
-                // Fallback to original functionality
-                const activeImage = document.getElementById('currentPageImage');
-                if (!activeImage) {
-                    showNotification('No image available for download', 'error');
-                    return;
-                }
+            // First check if we have a preview canvas with clipped content
+            const canvas = document.getElementById('previewCanvas');
+            if (canvas && currentClipData) {
+                // Download the clipped image with maximum quality
+                // Use PNG for lossless quality, fallback to high-quality JPEG if too large
+                canvas.toBlob(function(blob) {
+                    if (!blob) {
+                        showNotification('Failed to generate high-quality clip for download', 'error');
+                        return;
+                    }
+                    
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `${window.editionData.editionTitle}_Page_${window.editionData.currentPage}_HighQuality_Clip.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    showNotification('High-quality clip download started!', 'success');
+                    
+                    // Log quality info
+                    console.log('High-quality clip downloaded:', {
+                        dimensions: `${canvas.width}x${canvas.height}`,
+                        quality: currentClipData.quality || 'maximum',
+                        format: 'PNG (lossless)',
+                        scaleX: currentClipData.scaleX,
+                        scaleY: currentClipData.scaleY
+                    });
+                }, 'image/png'); // PNG for maximum quality
                 
+                // If PNG fails or is too large, try high-quality JPEG
+                setTimeout(() => {
+                    canvas.toBlob(function(blob) {
+                        if (blob && blob.size < 10000000) { // Less than 10MB
+                            console.log('PNG download successful, size:', Math.round(blob.size / 1024), 'KB');
+                        } else {
+                            // Fallback to high-quality JPEG
+                            canvas.toBlob(function(jpegBlob) {
+                                if (jpegBlob) {
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(jpegBlob);
+                                    link.download = `${window.editionData.editionTitle}_Page_${window.editionData.currentPage}_HighQuality_Clip.jpg`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(link.href);
+                                    console.log('High-quality JPEG fallback used');
+                                }
+                            }, 'image/jpeg', 0.95);
+                        }
+                    }, 'image/png');
+                }, 100);
+                
+                return;
+            }
+
+            // Fallback: if no clip data, download the full page image
+            const activeImage = document.getElementById('currentPageImage');
+            if (!activeImage) {
+                showNotification('No image available for download', 'error');
+                return;
+            }
+            
+            // Create a canvas to convert the image
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Wait for image to load if needed
+            if (activeImage.complete) {
+                downloadFullImage(activeImage, tempCanvas, tempCtx);
+            } else {
+                activeImage.onload = function() {
+                    downloadFullImage(activeImage, tempCanvas, tempCtx);
+                };
+            }
+        }
+
+        function downloadFullImage(image, canvas, ctx) {
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            ctx.drawImage(image, 0, 0);
+            
+            canvas.toBlob(function(blob) {
                 const link = document.createElement('a');
-                link.href = activeImage.src;
+                link.href = URL.createObjectURL(blob);
                 link.download = `${window.editionData.editionTitle}_Page_${window.editionData.currentPage}.jpg`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                showNotification('Image download started!', 'success');
-                return;
-            }
-
-            // Download the clipped image
-            const canvas = document.getElementById('previewCanvas');
-            if (!canvas) {
-                showNotification('No clip available for download', 'error');
-                return;
-            }
-
-            canvas.toBlob(function(blob) {
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `${window.editionData.editionTitle}_Page_${window.editionData.currentPage}_Clip.jpg`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
-                showNotification('Clip download started!', 'success');
+                showNotification('Image download started!', 'success');
             }, 'image/jpeg', 0.9);
         }
 

@@ -208,8 +208,8 @@ require_once 'includes/admin_layout.php';
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
-                                                <?php if (!empty(($edition['thumbnail_path'] ?? '')) && file_exists('../' . ($edition['thumbnail_path'] ?? ''))): ?>
-                                                    <img src="../<?php echo htmlspecialchars(($edition['thumbnail_path'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" 
+                                                <?php if (!empty(($edition['cover_image'] ?? '')) && file_exists('../' . ($edition['cover_image'] ?? ''))): ?>
+                                                    <img src="../<?php echo htmlspecialchars(($edition['cover_image'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" 
                                                          alt="Thumbnail" class="rounded" 
                                                          style="width: 60px; height: 60px; object-fit: cover;">
                                                 <?php else: ?>
